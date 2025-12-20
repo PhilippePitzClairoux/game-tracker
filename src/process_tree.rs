@@ -1,7 +1,9 @@
+use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
-use std::collections::btree_map::{Iter, IterMut};
+use std::collections::btree_map::{Iter};
+use std::hash::Hash;
 use regex::Regex;
-use sysinfo::{Pid, Process, System};
+use sysinfo::{Pid, Process};
 
 #[derive(Debug, Clone)]
 pub struct ProcessInfo {
@@ -10,6 +12,28 @@ pub struct ProcessInfo {
     cmd: Vec<String>,
     pid: Pid,
     run_time: u64
+}
+
+impl Eq for ProcessInfo {
+    fn assert_receiver_is_total_eq(&self) {
+        assert_eq!(self, self)
+    }
+}
+
+impl PartialEq<Self> for ProcessInfo {
+
+    fn eq(&self, other: &Self) -> bool {
+        self.pid == other.pid && self.cmd == other.cmd
+    }
+}
+
+impl Hash for ProcessInfo {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.pid.hash(state);
+        self.name.hash(state);
+        self.cmd.hash(state);
+        self.run_time.hash(state);
+    }
 }
 
 impl ProcessInfo {
@@ -67,37 +91,20 @@ impl ProcessInfo {
     }
 
     pub fn find(&self, s: &str) -> Option<(Pid, &ProcessInfo)> {
-        if self.cmd_contains(s) {
+        if self.cmd_contains(s) || self.name.contains(s) {
             return Some((self.pid.clone(), self))
         }
 
         if self.children.is_some() {
-            for (p, n) in self.children.as_ref().unwrap().iter() {
-                if n.cmd_contains(s) {
-                    return Some((p.clone(), n));
-                } else {
-                    match n.find(s) {
-                        Some(n) => return Some(n),
-                        None => () // do nothing
-                    }
+            for (_, n) in self.children.as_ref().unwrap().iter() {
+                match n.find(s) {
+                    Some(found) => return Some(found),
+                    None => ()
                 }
             }
         }
 
         None
-    }
-
-
-    pub fn extract_game_name(&self, extractor: &Regex) -> String {
-        match self.cmd.last() {
-            Some(v) => {
-                match extractor.find(v) {
-                    Some(m) => m.as_str().to_string(),
-                    None => self.name.to_owned()
-                }
-            },
-            None => self.name.to_owned()
-        }
     }
 
 

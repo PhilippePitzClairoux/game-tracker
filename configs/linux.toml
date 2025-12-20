@@ -1,0 +1,14 @@
+[steam]
+home_paths = [".local/share/Steam/steamapps/common"]
+ignore = [
+    "SteamLinuxRuntime_sniper",
+    "Steamworks Shared",
+    "SteamLinuxRuntime",
+    "SteamLinuxRuntime_soldier",
+    "Proton ",
+    "Steam Controller Configs"
+]
+
+[heroic-launcher]
+home_paths = ["Games/Heroic"]
+ignore = ["Prefixes"]
