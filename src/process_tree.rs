@@ -1,8 +1,6 @@
-use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
 use std::collections::btree_map::{Iter};
 use std::hash::Hash;
-use regex::Regex;
 use sysinfo::{Pid, Process};
 
 #[derive(Debug, Clone)]
@@ -23,7 +21,7 @@ impl Eq for ProcessInfo {
 impl PartialEq<Self> for ProcessInfo {
 
     fn eq(&self, other: &Self) -> bool {
-        self.pid == other.pid && self.cmd == other.cmd
+        self.pid == other.pid && self.cmd == other.cmd && self.name == other.name
     }
 }
 
@@ -32,7 +30,6 @@ impl Hash for ProcessInfo {
         self.pid.hash(state);
         self.name.hash(state);
         self.cmd.hash(state);
-        self.run_time.hash(state);
     }
 }
 

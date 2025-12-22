@@ -96,7 +96,7 @@ pub struct GameTracker{
     system_processes: System,
     scanner_config: Games,
     current_proc_tree: ProcessTree,
-    gametime_tracker: HashMap<ProcessInfo, String>
+    gametime_tracker: HashMap<String, ProcessInfo>,
 }
 
 impl GameTracker {
@@ -128,8 +128,17 @@ impl GameTracker {
         }
     }
 
-    pub fn gametime_tracker(&self) -> &HashMap<ProcessInfo, String> {
+    pub fn gametime_tracker(&self) -> &HashMap<String, ProcessInfo> {
         &self.gametime_tracker
+    }
+
+    pub fn get_total_time_played(&self) -> u64 {
+        let mut total: u64 = 0;
+        for game in self.gametime_tracker.values() {
+            total += game.run_time()
+        }
+
+        total
     }
 
     pub fn try_from(config_path: &str) -> Result<Self, Errors> {
@@ -169,7 +178,7 @@ impl GameTracker {
 
         for (_, proc_info) in self.current_proc_tree.iter() {
             if let Some((game_name, _, process_info)) = find_game(proc_info, &self.scanner_config) {
-                self.gametime_tracker.entry(process_info).or_insert(game_name);
+                self.gametime_tracker.entry(game_name).insert_entry(process_info);
             }
         }
     }
