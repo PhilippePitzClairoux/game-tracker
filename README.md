@@ -6,6 +6,9 @@ limit, a notification is sent and all games are killed.
 Currently tested on Fedora only - but should technically work on windows as well.
 (might need to implement a config file specifying game directories).
 
+You can specify seconds, minutes and hours - they will all be converted to seconds and
+they will be added up.
+
 ### How to build
 ```shell
 cargo build --release
