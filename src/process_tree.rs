@@ -21,7 +21,11 @@ impl Eq for ProcessInfo {
 impl PartialEq<Self> for ProcessInfo {
 
     fn eq(&self, other: &Self) -> bool {
-        self.pid == other.pid && self.cmd == other.cmd && self.name == other.name
+        self.pid == other.pid &&
+            self.cmd == other.cmd &&
+            self.name == other.name &&
+            self.run_time >= other.run_time // this might seem weird, but it's in case someone
+        // reopens a game and for some reason it has the same PID as a previous session
     }
 }
 
@@ -34,6 +38,8 @@ impl Hash for ProcessInfo {
 }
 
 impl ProcessInfo {
+
+    #[allow(dead_code)]
     pub fn new() -> ProcessInfo {
         ProcessInfo {
             children: None,
@@ -66,6 +72,7 @@ impl ProcessInfo {
         }
     }
 
+    #[allow(dead_code)]
     pub fn is_child_present(&self, p: &Pid) -> bool {
         self.children.as_ref()
             .is_some_and(|child| child.contains_key(p))
@@ -104,7 +111,7 @@ impl ProcessInfo {
         None
     }
 
-
+    #[allow(dead_code)]
     pub fn to_string(&self, level: usize) -> String {
         let mut output = String::from(
             format!("{}|__<{}> {}\n", " ".repeat(level), self.pid, self.cmd())

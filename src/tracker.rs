@@ -119,6 +119,7 @@ impl GameTracker {
         }
     }
 
+    #[allow(dead_code)]
     pub fn from(sys: System) -> Self {
         GameTracker {
             system_processes: sys,
@@ -141,6 +142,7 @@ impl GameTracker {
         total
     }
 
+    #[allow(dead_code)]
     pub fn try_from(config_path: &str) -> Result<Self, Errors> {
         let mut s = Self::new();
         s.load_config(config_path)?;
@@ -148,6 +150,7 @@ impl GameTracker {
         Ok(s)
     }
 
+    #[allow(dead_code)]
     pub fn process_tree(&self) -> &ProcessTree {
         &self.current_proc_tree
     }
