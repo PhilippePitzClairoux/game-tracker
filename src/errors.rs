@@ -7,4 +7,7 @@ pub enum Errors {
 
     #[error("could not deserialize toml file")]
     TOMLDeserializeError(#[from] toml::de::Error),
+
+    #[error(transparent)]
+    NotificationError(#[from]  notify_rust::error::Error),
 }

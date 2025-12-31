@@ -9,7 +9,7 @@ use crate::errors::Errors;
 use crate::process_tree::{ProcessInfo, ProcessTree};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct  PlatformGames {
+pub struct PlatformGames {
 
     /// Platform name
     #[serde(skip)]
@@ -92,7 +92,7 @@ fn find_game<'a, 'b>(p: &'b ProcessInfo, games: &'a Games) -> Option<(String, &'
 }
 
 #[derive(Debug)]
-pub struct GameTracker{
+pub struct GameTracker {
     system_processes: System,
     scanner_config: Games,
     current_proc_tree: ProcessTree,
