@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
-use std::collections::btree_map::{Iter};
+use std::collections::btree_map::{Iter, IterMut};
 use std::hash::Hash;
 use sysinfo::{Pid, Process};
 
@@ -23,17 +23,15 @@ impl PartialEq<Self> for ProcessInfo {
     fn eq(&self, other: &Self) -> bool {
         self.pid == other.pid &&
             self.cmd == other.cmd &&
-            self.name == other.name &&
-            self.run_time >= other.run_time // this might seem weird, but it's in case someone
-        // reopens a game and for some reason it has the same PID as a previous session
+            self.name == other.name
     }
 }
 
 impl Hash for ProcessInfo {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.pid.hash(state);
-        self.name.hash(state);
         self.cmd.hash(state);
+        self.name.hash(state);
     }
 }
 
@@ -46,7 +44,7 @@ impl ProcessInfo {
             name: String::new(),
             cmd: Vec::new(),
             run_time: 0,
-            pid: Pid::from_u32(0)
+            pid: Pid::from_u32(0),
         }
     }
 
@@ -56,7 +54,7 @@ impl ProcessInfo {
             name: proc.name().to_string_lossy().to_string(),
             cmd: proc.cmd().iter().map(|s| s.to_string_lossy().to_string()).collect(),
             run_time: proc.run_time(),
-            pid: proc.pid().clone()
+            pid: proc.pid().clone(),
         }
     }
 
@@ -94,9 +92,9 @@ impl ProcessInfo {
         self.cmd().contains(s)
     }
 
-    pub fn find(&self, s: &str) -> Option<(Pid, &ProcessInfo)> {
+    pub fn find(&self, s: &str) -> Option<&ProcessInfo> {
         if self.cmd_contains(s) || self.name.contains(s) {
-            return Some((self.pid.clone(), self))
+            return Some(self)
         }
 
         if self.children.is_some() {
@@ -180,6 +178,10 @@ impl ProcessTree {
 
     pub fn iter(&self) -> Iter<'_, Pid, Box<ProcessInfo>> {
         self.inner.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<'_, Pid, Box<ProcessInfo>> {
+        self.inner.iter_mut()
     }
 
     pub fn insert(&mut self, pid: Pid, process: Box<ProcessInfo>) -> Option<Box<ProcessInfo>> {

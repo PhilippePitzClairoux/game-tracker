@@ -1,12 +1,17 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::env::home_dir;
-use std::fs;
+use std::{fs, thread};
+use std::hash::{BuildHasherDefault, DefaultHasher};
 use std::io::Read;
+use std::ops::Deref;
 use std::path::PathBuf;
+use std::time::{Duration, SystemTime};
 use serde::{Deserialize, Serialize};
 use sysinfo::{ProcessRefreshKind, RefreshKind, System, UpdateKind};
 use crate::errors::Errors;
+use crate::{notify};
 use crate::process_tree::{ProcessInfo, ProcessTree};
+use crate::time::format_duration;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PlatformGames {
@@ -79,11 +84,11 @@ impl PlatformGames {
 
 type Games = BTreeMap<String, PlatformGames>;
 
-fn find_game<'a, 'b>(p: &'b ProcessInfo, games: &'a Games) -> Option<(String, &'a PlatformGames, ProcessInfo)> {
+fn find_game<'a>(p: &'a ProcessInfo, games: &Games) -> Option<(String, &'a ProcessInfo)> {
     for (_, platform) in games.iter() {
         for name in platform.games.iter() {
-            if let Some((_, process)) = p.find(name) {
-                return Some((name.clone(), platform, process.clone()));
+            if let Some(process) = p.find(name) {
+                return Some((name.clone(), process));
             }
         }
     }
@@ -96,7 +101,7 @@ pub struct GameTracker {
     system_processes: System,
     scanner_config: Games,
     current_proc_tree: ProcessTree,
-    gametime_tracker: HashMap<String, ProcessInfo>,
+    gametime_tracker: BTreeMap<String, HashSet<ProcessInfo>>,
 }
 
 impl GameTracker {
@@ -115,7 +120,7 @@ impl GameTracker {
             )),
             scanner_config: BTreeMap::new(),
             current_proc_tree: ProcessTree::new(),
-            gametime_tracker: HashMap::new(),
+            gametime_tracker: BTreeMap::new(),
         }
     }
 
@@ -125,19 +130,20 @@ impl GameTracker {
             system_processes: sys,
             scanner_config: BTreeMap::new(),
             current_proc_tree: ProcessTree::new(),
-            gametime_tracker: HashMap::new(),
+            gametime_tracker: BTreeMap::new(),
         }
     }
 
-    pub fn gametime_tracker(&self) -> &HashMap<String, ProcessInfo> {
+    pub fn gametime_tracker(&self) -> &BTreeMap<String, HashSet<ProcessInfo>> {
         &self.gametime_tracker
     }
 
     pub fn get_total_time_played(&self) -> u64 {
         let mut total: u64 = 0;
-        for game in self.gametime_tracker.values() {
-            total += game.run_time()
-        }
+
+        self.gametime_tracker.iter()
+            .flat_map(|(_, processes)| processes.into_iter())
+            .for_each(|proc| total += proc.run_time());
 
         total
     }
@@ -179,13 +185,21 @@ impl GameTracker {
         self.system_processes.refresh_all();
         self.current_proc_tree = ProcessTree::from(self.system_processes.processes());
 
-        for (_, proc_info) in self.current_proc_tree.iter() {
-            if let Some((game_name, _, process_info)) = find_game(proc_info, &self.scanner_config) {
-                self.gametime_tracker.entry(game_name).insert_entry(process_info);
+        for (_, process) in self.current_proc_tree.iter() {
+            if let Some((game_name, game_process)) = find_game(process, &self.scanner_config) {
+                let game_processes = self.gametime_tracker.entry(game_name)
+                    .or_insert(HashSet::new());
+
+                if game_processes.contains(&game_process) {
+                    // if process is already present, remove it to insert it again (with updated runtime)
+                    // ths is 100% a hack
+                    game_processes.remove(&game_process);
+                }
+
+                game_processes.insert(game_process.clone());
             }
         }
     }
-
 
     pub fn kill(&self, p: &ProcessInfo) -> Result<bool, Errors> {
 
@@ -204,3 +218,4 @@ impl GameTracker {
         }
     }
 }
+
