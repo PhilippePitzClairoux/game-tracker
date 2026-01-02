@@ -6,7 +6,7 @@ use crate::time::format_duration;
 use crate::tracker::GameTracker;
 
 pub struct Task {
-    frequence: Duration,
+    frequency: Duration,
     tracker: GameTracker,
     sub_tasks: Vec<SubTask>,
 }
@@ -16,7 +16,7 @@ pub type SubTask = Box<dyn FnMut(&mut GameTracker) -> Result<(), Errors>>;
 impl Task {
     fn new() -> Self {
         Task {
-            frequence: Duration::from_secs(15),
+            frequency: Duration::from_secs(15),
             tracker: GameTracker::new(),
             sub_tasks: Vec::new()
         }
@@ -24,7 +24,7 @@ impl Task {
 
     fn from(frequence: Duration) -> Self {
         Task {
-            frequence,
+            frequency: frequence,
             tracker: GameTracker::new(),
             sub_tasks: Vec::new()
         }
@@ -32,7 +32,7 @@ impl Task {
 
     pub fn using(frequence: Duration, tracker: GameTracker) -> Self {
         Task {
-            frequence,
+            frequency: frequence,
             tracker,
             sub_tasks: Vec::new()
         }
@@ -59,8 +59,8 @@ impl Task {
 
             // optional wait
             if let Ok(elapsed) = start.elapsed() && !elapsed.is_zero() {
-                let wait_remainder = self.frequence - elapsed;
-                if wait_remainder <= self.frequence {
+                let wait_remainder = self.frequency - elapsed;
+                if wait_remainder <= self.frequency {
                     thread::sleep(wait_remainder);
                 }
             }
