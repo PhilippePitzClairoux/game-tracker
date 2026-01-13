@@ -1,17 +1,38 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::env::home_dir;
-use std::{fs, thread};
-use std::hash::{BuildHasherDefault, DefaultHasher};
+use std::{fs};
+use std::fs::DirEntry;
 use std::io::Read;
-use std::ops::Deref;
 use std::path::PathBuf;
-use std::time::{Duration, SystemTime};
 use serde::{Deserialize, Serialize};
 use sysinfo::{ProcessRefreshKind, RefreshKind, System, UpdateKind};
 use crate::errors::Errors;
-use crate::{notify};
 use crate::process_tree::{ProcessInfo, ProcessTree};
-use crate::time::format_duration;
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum ExpectedEntityType {
+    FILE,
+    DIRECTORY,
+    BOTH
+}
+
+impl Default for ExpectedEntityType {
+    fn default() -> Self {
+        ExpectedEntityType::BOTH
+    }
+}
+
+impl ExpectedEntityType {
+    fn is_valid(&self, entry: &DirEntry) -> bool {
+        match self {
+            ExpectedEntityType::FILE => entry.path().is_file(),
+            ExpectedEntityType::DIRECTORY => entry.path().is_dir(),
+            ExpectedEntityType::BOTH => entry.path().is_file()||entry.path().is_dir(),
+            _ => false
+        }
+    }
+}
+
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PlatformGames {
@@ -31,6 +52,10 @@ pub struct PlatformGames {
     /// Absolute path(s) to search for games
     #[serde(default)]
     absolute_paths: Vec<PathBuf>,
+
+    /// Games in directory will be a EntityType (directory, file or both)
+    #[serde(default)]
+    expected_type: ExpectedEntityType,
 
     /// Ignore list
     #[serde(default)]
@@ -65,8 +90,8 @@ impl PlatformGames {
 
     fn load_game_names_from_path(&mut self, p: &PathBuf) {
         if let Ok(directories) = fs::read_dir(p) {
-            for dir in directories.filter_map(Result::ok).filter(|d| d.path().is_dir()) {
-                let file_name = dir.file_name().to_string_lossy().to_string();
+            for entry in directories.filter_map(Result::ok).filter(|d| self.expected_type.is_valid(&d)) {
+                let file_name = entry.file_name().to_string_lossy().to_string();
                 if !ignore_file(&file_name, &self.ignore) {
                     self.games.push(file_name);
                 }
