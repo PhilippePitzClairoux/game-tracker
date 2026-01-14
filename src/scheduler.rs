@@ -69,7 +69,7 @@ impl Task {
 }
 
 
-pub fn generate_log_games_found() -> SubTask {
+pub fn log_games_found() -> SubTask {
     Box::new(move |tracker: &mut GameTracker| {
 
         if tracker.gametime_tracker().len() == 0 {
@@ -94,7 +94,7 @@ pub fn generate_log_games_found() -> SubTask {
     })
 }
 
-pub fn generate_kill_games(duration: u64) -> SubTask {
+pub fn timed_game_session(duration: u64) -> SubTask {
     Box::new(move |tracker: &mut GameTracker| {
         let time_played = tracker.get_total_time_played();
 
@@ -105,24 +105,24 @@ pub fn generate_kill_games(duration: u64) -> SubTask {
                 .flat_map(|(_, proc)| proc.into_iter());
 
             for proc in known_games {
-                tracker.kill(proc)?;
+                tracker.kill(proc);
             }
         }
         Ok(())
     })
 }
-pub fn generate_warn_user(threshold: f64, value: u64) -> SubTask {
+pub fn warn_game_session_near_end(threshold: f64, duration: u64) -> SubTask {
     let mut was_warned = false;
 
     Box::new(move |tracker: &mut GameTracker| {
         let time_played = tracker.get_total_time_played();
-        if !was_warned && time_played >= value {
+        if !was_warned && time_played >= duration {
             println!("Warning threshold reached : {threshold}");
             was_warned = true;
 
             notify(
                 format!("{}% of session played - {}",
-                        threshold, format_duration(value)).as_str()
+                        threshold, format_duration(duration)).as_str()
             )?;
         }
 

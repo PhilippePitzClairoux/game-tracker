@@ -1,6 +1,6 @@
 [steam]
 home_paths = [".local/share/Steam/steamapps/common"]
-expected_type = "DIRECTORY"
+search_entity_type = "DIRECTORY"
 ignore = [
     "SteamLinuxRuntime_sniper",
     "Steamworks Shared",
@@ -12,10 +12,10 @@ ignore = [
 
 [heroic-launcher]
 home_paths = ["Games/Heroic"]
-expected_type = "DIRECTORY"
+search_entity_type = "DIRECTORY"
 ignore = ["Prefixes"]
 
-[linux-distro-games]
-expected_type = "FILE"
+[ubuntu-games]
+search_entity_type = "EXECUTABLE"
 absolute_paths = ["/usr/games/"]
 ignore = [ "server" ]

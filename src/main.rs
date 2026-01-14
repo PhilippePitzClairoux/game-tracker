@@ -8,7 +8,7 @@ use std::time::Duration;
 use clap::Parser;
 use notify_rust::Notification;
 use crate::errors::Errors;
-use crate::scheduler::{generate_kill_games, generate_log_games_found, generate_warn_user, Task};
+use crate::scheduler::{timed_game_session, log_games_found, warn_game_session_near_end, Task};
 use crate::time::to_seconds;
 use crate::tracker::GameTracker;
 
@@ -63,12 +63,12 @@ fn main() {
     let mut task = Task::using(Duration::from_secs(args.scan_interval), tracker);
 
     // log games found
-    task.add(generate_log_games_found());
+    task.add(log_games_found());
 
     // kill games once session reaches it end
     let session_duration = to_seconds(args.hours, args.minutes, args.seconds);
     if session_duration > 0 && !args.monitor_only {
-        task.add(generate_kill_games(session_duration));
+        task.add(timed_game_session(session_duration));
     }
 
     // setup warning when session end if near
@@ -77,7 +77,7 @@ fn main() {
         let value = ((threshold / 100_f64) * session_duration as f64)
             .floor() as u64;
 
-        task.add(generate_warn_user(threshold, value));
+        task.add(warn_game_session_near_end(threshold, value));
     }
 
     task.start().expect("failed to run main task...");
