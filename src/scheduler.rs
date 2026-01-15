@@ -1,11 +1,11 @@
 use std::thread;
 use std::time::{Duration, SystemTime};
+use notify_rust::Notification;
 use crate::errors::Errors;
-use crate::notify;
 use crate::time::format_duration;
 use crate::tracker::GameTracker;
 
-pub struct Task {
+pub struct GameTrackerScheduler {
     frequency: Duration,
     tracker: GameTracker,
     sub_tasks: Vec<SubTask>,
@@ -13,9 +13,9 @@ pub struct Task {
 
 pub type SubTask = Box<dyn FnMut(&mut GameTracker) -> Result<(), Errors>>;
 
-impl Task {
+impl GameTrackerScheduler {
     fn new() -> Self {
-        Task {
+        GameTrackerScheduler {
             frequency: Duration::from_secs(15),
             tracker: GameTracker::new(),
             sub_tasks: Vec::new()
@@ -23,7 +23,7 @@ impl Task {
     }
 
     fn from(frequence: Duration) -> Self {
-        Task {
+        GameTrackerScheduler {
             frequency: frequence,
             tracker: GameTracker::new(),
             sub_tasks: Vec::new()
@@ -31,7 +31,7 @@ impl Task {
     }
 
     pub fn using(frequence: Duration, tracker: GameTracker) -> Self {
-        Task {
+        GameTrackerScheduler {
             frequency: frequence,
             tracker,
             sub_tasks: Vec::new()
@@ -52,7 +52,7 @@ impl Task {
             self.tracker.update_time_tracker();
 
 
-            // execute main function
+            // execute SubTasks
             for func in self.sub_tasks.iter_mut() {
                 func(&mut self.tracker)?;
             }
@@ -68,6 +68,15 @@ impl Task {
     }
 }
 
+
+fn notify(msg: &str) -> Result<(), Errors> {
+    Notification::new()
+        .summary("WARNING")
+        .body(msg)
+        .show()?;
+
+    Ok(())
+}
 
 pub fn log_games_found() -> SubTask {
     Box::new(move |tracker: &mut GameTracker| {
@@ -88,8 +97,8 @@ pub fn log_games_found() -> SubTask {
             output += format!("{} '{}' has been running for: {}\n",
                               proc.pid(), game_name, format_duration(proc.run_time())).as_str()
         }
-        println!("{}", output);
 
+        println!("{}", output);
         Ok(())
     })
 }

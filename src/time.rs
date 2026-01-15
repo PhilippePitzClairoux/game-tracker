@@ -1,5 +1,6 @@
 use chrono::TimeDelta;
 
+// todo : implement parser -> 3h\s?43m\s?21s / 08:30:12
 
 pub fn to_seconds(hours: u64, minutes: u64, seconds: u64) -> u64 {
     (hours * 60 * 60) + (minutes * 60) + seconds

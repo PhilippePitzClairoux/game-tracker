@@ -4,11 +4,11 @@ mod tracker;
 mod time;
 mod scheduler;
 
+use std::process::exit;
 use std::time::Duration;
 use clap::Parser;
-use notify_rust::Notification;
 use crate::errors::Errors;
-use crate::scheduler::{timed_game_session, log_games_found, warn_game_session_near_end, Task};
+use crate::scheduler::{timed_game_session, log_games_found, warn_game_session_near_end, GameTrackerScheduler};
 use crate::time::to_seconds;
 use crate::tracker::GameTracker;
 
@@ -45,30 +45,20 @@ struct Arguments {
 }
 
 
-fn notify(msg: &str) -> Result<(), Errors> {
-    Notification::new()
-        .summary("WARNING")
-        .body(msg)
-        .show()?;
-
-    Ok(())
-}
-
-
 fn main() {
     let args = Arguments::parse();
     let mut tracker = GameTracker::new();
     tracker.load_config("configs/linux.toml")
         .expect("Failed to load config");
-    let mut task = Task::using(Duration::from_secs(args.scan_interval), tracker);
+    let mut scheduler = GameTrackerScheduler::using(Duration::from_secs(args.scan_interval), tracker);
 
     // log games found
-    task.add(log_games_found());
+    scheduler.add(log_games_found());
 
     // kill games once session reaches it end
     let session_duration = to_seconds(args.hours, args.minutes, args.seconds);
     if session_duration > 0 && !args.monitor_only {
-        task.add(timed_game_session(session_duration));
+        scheduler.add(timed_game_session(session_duration));
     }
 
     // setup warning when session end if near
@@ -77,8 +67,22 @@ fn main() {
         let value = ((threshold / 100_f64) * session_duration as f64)
             .floor() as u64;
 
-        task.add(warn_game_session_near_end(threshold, value));
+        scheduler.add(warn_game_session_near_end(threshold, value));
     }
 
-    task.start().expect("failed to run main task...");
+    loop {
+        match scheduler.start() {
+            Err(Errors::DesynchronizedTimerError(value)) => {
+                println!("Potential tampering detected - elapsed detected a desynchronization \
+                between a timer and the system clock ({} seconds). Restarting scheduler...", value);
+            }
+            Err(unhandled) => {
+                println!("There was an unexpected error: {:?}", unhandled);
+                break
+            },
+            _ =>  break
+        }
+    }
+
+    exit(-1);
 }

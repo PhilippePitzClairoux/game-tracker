@@ -1,0 +1,18 @@
+[Unit]
+Description=Game-Tracker Service
+
+[Service]
+ExecStart=/usr/local/bin/game-tracker --hours \\hours --minutes \\minutes --seconds \\seconds
+User=root
+Restart=always
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
