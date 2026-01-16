@@ -6,7 +6,7 @@ use std::io::Read;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use sysinfo::{ProcessRefreshKind, RefreshKind, System, UpdateKind};
-use crate::errors::Errors;
+use crate::errors::Error;
 use crate::process_tree::{ProcessInfo, ProcessTree};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -173,7 +173,7 @@ impl GameTracker {
     }
 
     #[allow(dead_code)]
-    pub fn try_from(config_path: &str) -> Result<Self, Errors> {
+    pub fn try_from(config_path: &str) -> Result<Self, Error> {
         let mut s = Self::new();
         s.load_config(config_path)?;
 
@@ -185,7 +185,7 @@ impl GameTracker {
         &self.processes
     }
 
-    pub fn load_config(&mut self, config_path: &str) -> Result<(), Errors> {
+    pub fn load_config(&mut self, config_path: &str) -> Result<(), Error> {
         let mut file = fs::File::open(config_path)?;
         let mut buffer = vec![];
 

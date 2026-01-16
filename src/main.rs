@@ -7,25 +7,17 @@ mod scheduler;
 use std::process::exit;
 use std::time::Duration;
 use clap::Parser;
-use crate::errors::Errors;
+use crate::errors::Error;
 use crate::scheduler::{timed_game_session, log_games_found, warn_game_session_near_end, GameTrackerScheduler};
-use crate::time::to_seconds;
+use crate::time::{format_duration, SessionDurationParser};
 use crate::tracker::GameTracker;
 
 #[derive(Parser, PartialOrd, PartialEq)]
 struct Arguments {
 
-    /// Number of hours of allowed play time (can be combined with minutes/seconds)
-    #[clap(long, default_value_t = 0)]
-    hours: u64,
-
-    /// Number of minutes of allowed play time (can be combined with hours/seconds)
-    #[clap(long, default_value_t = 0)]
-    minutes: u64,
-
-    /// Number of seconds of allowed play time (can be combined with hours/minutes)
-    #[clap(long, default_value_t = 0)]
-    seconds: u64,
+    /// Session duration (ex.: "30h 20m 10s", "3:30:00", "30h 2h 30m 6s 6s")
+    #[clap(long)]
+    session_duration: Option<SessionDurationParser>,
 
     /// Delay between process scans
     #[clap(long, default_value_t = 15)]
@@ -56,23 +48,28 @@ fn main() {
     scheduler.add(log_games_found());
 
     // kill games once session reaches it end
-    let session_duration = to_seconds(args.hours, args.minutes, args.seconds);
-    if session_duration > 0 && !args.monitor_only {
-        scheduler.add(timed_game_session(session_duration));
-    }
+    if let Some(session_duration) = args.session_duration && !args.monitor_only {
+        println!("Session duration enabled - total duration : {}", session_duration.to_string());
+        scheduler.add(
+            timed_game_session(session_duration.to_seconds())
+        );
 
-    // setup warning when session end if near
-    if args.warn {
-        let threshold  = args.warning_threshold.unwrap_or(90.0);
-        let value = ((threshold / 100_f64) * session_duration as f64)
-            .floor() as u64;
+        // setup warning when session end if near
+        if args.warn {
+            let threshold  = args.warning_threshold.unwrap_or(90.0);
+            let value = ((threshold / 100_f64) * session_duration.to_seconds() as f64)
+                .floor() as u64;
 
-        scheduler.add(warn_game_session_near_end(threshold, value));
+            println!("User warning enabled - threshold={}, warning_after=\"{}\"",
+                     threshold, format_duration(value)
+            );
+            scheduler.add(warn_game_session_near_end(threshold, value));
+        }
     }
 
     loop {
         match scheduler.start() {
-            Err(Errors::DesynchronizedTimerError(value)) => {
+            Err(Error::DesynchronizedTimerError(value)) => {
                 println!("Potential tampering detected - elapsed detected a desynchronization \
                 between a timer and the system clock ({} seconds). Restarting scheduler...", value);
             }

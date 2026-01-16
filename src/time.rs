@@ -1,9 +1,122 @@
+use std::str::FromStr;
 use chrono::TimeDelta;
+use regex::{Matches, Regex, RegexSet};
+use crate::errors::Error;
 
 // todo : implement parser -> 3h\s?43m\s?21s / 08:30:12
+#[derive(Debug, Default, Clone, PartialEq, PartialOrd)]
+pub struct SessionDurationParser {
+    hours: u64,
+    minutes: u64,
+    seconds: u64,
+}
 
-pub fn to_seconds(hours: u64, minutes: u64, seconds: u64) -> u64 {
-    (hours * 60 * 60) + (minutes * 60) + seconds
+fn parse_hms_time(extractor: Matches, session_duration: &mut SessionDurationParser) -> Result<(), Error> {
+    for current_match in extractor {
+        let mut base_str = current_match.as_str().to_string();
+        let time_modifier = base_str.pop()
+            .ok_or(Error::SessionDurationParserError)?;
+
+        match time_modifier {
+            'h'|'H' => session_duration.hours += u64::from_str(base_str.as_str())?,
+            'm'|'M' => session_duration.minutes += u64::from_str(base_str.as_str())?,
+            's'|'S' => session_duration.seconds += u64::from_str(base_str.as_str())?,
+            _ => return Err(Error::SessionDurationParserError),
+        }
+    }
+
+    Ok(())
+}
+
+fn parse_colon_time(time: &str, session_duration: &mut SessionDurationParser) -> Result<(), Error> {
+    let mut parts = time.splitn(3, ":")
+        .collect::<Vec<&str>>();
+
+    for (index, value) in parts.iter_mut().enumerate() {
+        let parsed_value = value.parse::<u64>()?;
+        match index {
+            0 => session_duration.hours += parsed_value,
+            1 => session_duration.minutes += parsed_value,
+            2 => session_duration.seconds += parsed_value,
+            _ => return Err(Error::SessionDurationParserError)
+        }
+    }
+
+    Ok(())
+}
+
+
+impl FromStr for SessionDurationParser {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut session_duration = SessionDurationParser::default();
+        let re = RegexSet::new([
+            r"(\d+[hHmMsS]\s?)+",
+            r"^\d+:\d+:\d+$",
+        ])?;
+
+
+        for i in re.matches(s) {
+            let current_re = re.patterns()[i].clone();
+            match i {
+                0 => {
+                    let extractor = Regex::new(current_re.as_str())?;
+                    parse_hms_time(extractor.find_iter(s), &mut session_duration)?;
+                },
+                1 => parse_colon_time(s, &mut session_duration)?,
+                _ => return Err(Error::SessionDurationParserError),
+            }
+        }
+        Ok(session_duration)
+    }
+}
+
+impl SessionDurationParser {
+
+    pub fn to_seconds(&self) -> u64 {
+        (self.hours * 60 * 60) + (self.minutes * 60) + self.seconds
+    }
+
+    pub fn to_string(&self) -> String {
+        format!("{} hour(s) {} minute(s) {} second(s)",
+                self.hours, self.minutes, self.seconds
+        )
+    }
+
+}
+
+#[cfg(test)]
+mod session_duration_parser_tests {
+    use super::*;
+
+    #[test]
+    fn test_first_case() {
+        let a = SessionDurationParser::from_str("1000h 30m 9000s")
+            .expect("no errors!");
+        assert_eq!(a.hours, 1000);
+        assert_eq!(a.minutes, 30);
+        assert_eq!(a.seconds, 9000);
+    }
+
+    #[test]
+    fn test_first_case_with_duplicates() {
+        let a = SessionDurationParser::from_str("1000h 10h 30m 30m 10s 9000s")
+            .expect("no errors!");
+
+        assert_eq!(a.hours, 1010);
+        assert_eq!(a.minutes, 60);
+        assert_eq!(a.seconds, 9010);
+    }
+
+    #[test]
+    fn test_first_case_with_invalid_values() {
+        SessionDurationParser::from_str("102h avasds")
+            .expect_err("should not work!");
+
+        SessionDurationParser::from_str("102h 83223")
+            .expect_err("should not work!");
+    }
 }
 
 pub fn format_duration(duration: u64) -> String {

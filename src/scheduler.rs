@@ -1,7 +1,7 @@
 use std::thread;
 use std::time::{Duration, SystemTime};
 use notify_rust::Notification;
-use crate::errors::Errors;
+use crate::errors::Error;
 use crate::time::format_duration;
 use crate::tracker::GameTracker;
 
@@ -11,7 +11,7 @@ pub struct GameTrackerScheduler {
     sub_tasks: Vec<SubTask>,
 }
 
-pub type SubTask = Box<dyn FnMut(&mut GameTracker) -> Result<(), Errors>>;
+pub type SubTask = Box<dyn FnMut(&mut GameTracker) -> Result<(), Error>>;
 
 impl GameTrackerScheduler {
     fn new() -> Self {
@@ -43,7 +43,7 @@ impl GameTrackerScheduler {
         self
     }
 
-    pub fn start(&mut self) -> Result<(), Errors> {
+    pub fn start(&mut self) -> Result<(), Error> {
         loop {
             // time execution
             let start = SystemTime::now();
@@ -69,7 +69,7 @@ impl GameTrackerScheduler {
 }
 
 
-fn notify(msg: &str) -> Result<(), Errors> {
+fn notify(msg: &str) -> Result<(), Error> {
     Notification::new()
         .summary("WARNING")
         .body(msg)
