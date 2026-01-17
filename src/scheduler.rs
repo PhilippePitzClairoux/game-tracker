@@ -1,5 +1,7 @@
+use std::ops::Add;
 use std::thread;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
+use chrono::{Days, Timelike};
 use notify_rust::Notification;
 use crate::errors::Error;
 use crate::time::format_duration;
@@ -44,9 +46,11 @@ impl GameTrackerScheduler {
     }
 
     pub fn start(&mut self) -> Result<(), Error> {
+        let current_day = chrono::Local::now();
+
         loop {
             // time execution
-            let start = SystemTime::now();
+            let start = Instant::now();
 
             // update tracker
             self.tracker.update_time_tracker();
@@ -58,11 +62,8 @@ impl GameTrackerScheduler {
             }
 
             // optional wait
-            if let Ok(elapsed) = start.elapsed() && !elapsed.is_zero() {
-                let wait_remainder = self.frequency - elapsed;
-                if wait_remainder <= self.frequency {
-                    thread::sleep(wait_remainder);
-                }
+            if let Some(remainder) = self.frequency.checked_sub(start.elapsed()) {
+                thread::sleep(remainder);
             }
         }
     }
@@ -82,7 +83,8 @@ pub fn log_games_found() -> SubTask {
     Box::new(move |tracker: &mut GameTracker| {
 
         if tracker.gametime_tracker().len() == 0 {
-            println!("No games have been found yet!")
+            println!("No games have been found yet!");
+            return Ok(())
         }
 
         let mut output= String::new();
@@ -120,6 +122,7 @@ pub fn timed_game_session(duration: u64) -> SubTask {
         Ok(())
     })
 }
+
 pub fn warn_game_session_near_end(threshold: f64, duration: u64) -> SubTask {
     let mut was_warned = false;
 
@@ -133,6 +136,59 @@ pub fn warn_game_session_near_end(threshold: f64, duration: u64) -> SubTask {
                 format!("{}% of session played - {}",
                         threshold, format_duration(duration)).as_str()
             )?;
+        }
+
+        Ok(())
+    })
+}
+
+pub fn clock_tampering() -> SubTask {
+    let start_time = chrono::Local::now();
+    let uptime = Instant::now();
+
+    Box::new(move |tracker: &mut GameTracker| {
+        println!("{} {}", chrono::Local::now().signed_duration_since(start_time), uptime.elapsed().as_secs());
+        let clock_estimation = chrono::Local::now()
+            .signed_duration_since(start_time).num_seconds() as u64;
+        let instant_estimation = uptime.elapsed().as_secs();
+
+        if clock_estimation > instant_estimation {
+            println!("CLOCK TAMPERING DETECTED!")
+        }
+
+        Ok(())
+    })
+}
+
+pub fn timed_execution() -> Duration {
+    let start = Instant::now();
+
+    for _ in 0..10_000 {
+        std::hint::black_box(
+            unsafe {
+                std::ptr::read_volatile(&0u8)
+            }
+        );
+    }
+
+    start.elapsed()
+}
+
+pub fn timing_tampering() -> SubTask {
+    let mut average: u128 = 0;
+    for _ in 0..10 {
+        average += timed_execution().as_nanos();
+    }
+
+    average /= 10;
+
+    Box::new(move |tracker: &mut GameTracker| {
+        let elapsed = timed_execution();
+
+        // TODO : this does not work as intented - maybe calculate a % increase based off last iteration ?
+        println!("Reading 10_000 bytes took {} secs", elapsed.as_micros());
+        if elapsed.as_nanos() > average {
+            println!("TAMPERING DETECTED!");
         }
 
         Ok(())

@@ -3,6 +3,7 @@ name = "game-tracker"
 version = "0.1.0"
 edition = "2024"
 
+
 [dependencies]
 sysinfo = { version = "0.37.2", features = ["system"] }
 clap = { version = "4.5.53", features = ["std", "derive"]}

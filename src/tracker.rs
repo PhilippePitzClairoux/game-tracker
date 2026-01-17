@@ -126,6 +126,7 @@ pub struct GameTracker {
     scanner_config: Games,
     processes: ProcessTree,
     games_found: BTreeMap<String, HashSet<ProcessInfo>>,
+    uptime: chrono::Duration,
 }
 
 impl GameTracker {
@@ -145,6 +146,7 @@ impl GameTracker {
             scanner_config: Games::new(),
             processes: ProcessTree::new(),
             games_found: BTreeMap::new(),
+            uptime: chrono::Duration::seconds(0),
         }
     }
 
@@ -155,6 +157,7 @@ impl GameTracker {
             scanner_config: BTreeMap::new(),
             processes: ProcessTree::new(),
             games_found: BTreeMap::new(),
+            uptime: chrono::Duration::seconds(0),
         }
     }
 

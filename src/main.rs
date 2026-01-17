@@ -8,8 +8,8 @@ use std::process::exit;
 use std::time::Duration;
 use clap::Parser;
 use crate::errors::Error;
-use crate::scheduler::{timed_game_session, log_games_found, warn_game_session_near_end, GameTrackerScheduler};
-use crate::time::{format_duration, SessionDurationParser};
+use crate::scheduler::{timed_game_session, log_games_found, warn_game_session_near_end, GameTrackerScheduler, clock_tampering, timing_tampering};
+use crate::time::{format_duration, DurationParser};
 use crate::tracker::GameTracker;
 
 #[derive(Parser, PartialOrd, PartialEq)]
@@ -17,7 +17,7 @@ struct Arguments {
 
     /// Session duration (ex.: "30h 20m 10s", "3:30:00", "30h 2h 30m 6s 6s")
     #[clap(long)]
-    session_duration: Option<SessionDurationParser>,
+    session_duration: Option<DurationParser>,
 
     /// Delay between process scans
     #[clap(long, default_value_t = 15)]
@@ -46,6 +46,8 @@ fn main() {
 
     // log games found
     scheduler.add(log_games_found());
+    scheduler.add(clock_tampering());
+    scheduler.add(timing_tampering());
 
     // kill games once session reaches it end
     if let Some(session_duration) = args.session_duration && !args.monitor_only {

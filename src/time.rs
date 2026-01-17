@@ -3,15 +3,14 @@ use chrono::TimeDelta;
 use regex::{Matches, Regex, RegexSet};
 use crate::errors::Error;
 
-// todo : implement parser -> 3h\s?43m\s?21s / 08:30:12
 #[derive(Debug, Default, Clone, PartialEq, PartialOrd)]
-pub struct SessionDurationParser {
+pub struct DurationParser {
     hours: u64,
     minutes: u64,
     seconds: u64,
 }
 
-fn parse_hms_time(extractor: Matches, session_duration: &mut SessionDurationParser) -> Result<(), Error> {
+fn parse_hms_duration(extractor: Matches, session_duration: &mut DurationParser) -> Result<(), Error> {
     for current_match in extractor {
         let mut base_str = current_match.as_str().to_string();
         let time_modifier = base_str.pop()
@@ -28,7 +27,7 @@ fn parse_hms_time(extractor: Matches, session_duration: &mut SessionDurationPars
     Ok(())
 }
 
-fn parse_colon_time(time: &str, session_duration: &mut SessionDurationParser) -> Result<(), Error> {
+fn parse_colon_duration(time: &str, session_duration: &mut DurationParser) -> Result<(), Error> {
     let mut parts = time.splitn(3, ":")
         .collect::<Vec<&str>>();
 
@@ -46,11 +45,11 @@ fn parse_colon_time(time: &str, session_duration: &mut SessionDurationParser) ->
 }
 
 
-impl FromStr for SessionDurationParser {
+impl FromStr for DurationParser {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut session_duration = SessionDurationParser::default();
+        let mut session_duration = DurationParser::default();
         let re = RegexSet::new([
             r"(\d+[hHmMsS]\s?)+",
             r"^\d+:\d+:\d+$",
@@ -62,9 +61,9 @@ impl FromStr for SessionDurationParser {
             match i {
                 0 => {
                     let extractor = Regex::new(current_re.as_str())?;
-                    parse_hms_time(extractor.find_iter(s), &mut session_duration)?;
+                    parse_hms_duration(extractor.find_iter(s), &mut session_duration)?;
                 },
-                1 => parse_colon_time(s, &mut session_duration)?,
+                1 => parse_colon_duration(s, &mut session_duration)?,
                 _ => return Err(Error::SessionDurationParserError),
             }
         }
@@ -72,7 +71,7 @@ impl FromStr for SessionDurationParser {
     }
 }
 
-impl SessionDurationParser {
+impl DurationParser {
 
     pub fn to_seconds(&self) -> u64 {
         (self.hours * 60 * 60) + (self.minutes * 60) + self.seconds
@@ -84,39 +83,6 @@ impl SessionDurationParser {
         )
     }
 
-}
-
-#[cfg(test)]
-mod session_duration_parser_tests {
-    use super::*;
-
-    #[test]
-    fn test_first_case() {
-        let a = SessionDurationParser::from_str("1000h 30m 9000s")
-            .expect("no errors!");
-        assert_eq!(a.hours, 1000);
-        assert_eq!(a.minutes, 30);
-        assert_eq!(a.seconds, 9000);
-    }
-
-    #[test]
-    fn test_first_case_with_duplicates() {
-        let a = SessionDurationParser::from_str("1000h 10h 30m 30m 10s 9000s")
-            .expect("no errors!");
-
-        assert_eq!(a.hours, 1010);
-        assert_eq!(a.minutes, 60);
-        assert_eq!(a.seconds, 9010);
-    }
-
-    #[test]
-    fn test_first_case_with_invalid_values() {
-        SessionDurationParser::from_str("102h avasds")
-            .expect_err("should not work!");
-
-        SessionDurationParser::from_str("102h 83223")
-            .expect_err("should not work!");
-    }
 }
 
 pub fn format_duration(duration: u64) -> String {
@@ -131,4 +97,37 @@ pub fn format_duration(duration: u64) -> String {
     format!("{} days {} hour(s) {} minute(s) {} second(s)",
             days, hours, minutes, seconds
     )
+}
+
+#[cfg(test)]
+mod session_duration_parser_tests {
+    use super::*;
+
+    #[test]
+    fn test_first_case() {
+        let a = DurationParser::from_str("1000h 30m 9000s")
+            .expect("no errors!");
+        assert_eq!(a.hours, 1000);
+        assert_eq!(a.minutes, 30);
+        assert_eq!(a.seconds, 9000);
+    }
+
+    #[test]
+    fn test_first_case_with_duplicates() {
+        let a = DurationParser::from_str("1000h 10h 30m 30m 10s 9000s")
+            .expect("no errors!");
+
+        assert_eq!(a.hours, 1010);
+        assert_eq!(a.minutes, 60);
+        assert_eq!(a.seconds, 9010);
+    }
+
+    #[test]
+    fn test_first_case_with_invalid_values() {
+        DurationParser::from_str("102h avasds")
+            .expect_err("should not work!");
+
+        DurationParser::from_str("102h 83223")
+            .expect_err("should not work!");
+    }
 }
