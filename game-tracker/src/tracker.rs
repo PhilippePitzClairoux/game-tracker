@@ -6,8 +6,8 @@ use std::io::Read;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use sysinfo::{ProcessRefreshKind, RefreshKind, System, UpdateKind};
+use common::Error;
 use tampering_profiler::profile_call;
-use crate::errors::Error;
 use crate::process_tree::{ProcessInfo, ProcessTree};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -211,7 +211,7 @@ impl GameTracker {
     }
 
     #[profile_call]
-    pub fn update_time_tracker(&mut self) {
+    pub fn update_time_tracker(&mut self) -> Result<(), Error> {
         self.system_processes.refresh_all();
         self.processes = ProcessTree::from(self.system_processes.processes());
 
@@ -229,23 +229,15 @@ impl GameTracker {
                 game_processes.insert(game_process.clone());
             }
         }
+
+        Ok(())
     }
 
     #[profile_call]
-    pub fn kill(&self, p: &ProcessInfo) -> bool {
-        // todo : test whether this is usefull or not - probably isn't
-        // match p.children() {
-        //     Some(children) => {
-        //         for (_, child) in children.iter() {
-        //             self.kill(child);
-        //         }
-        //     }
-        //     None => ()
-        // }
-
+    pub fn kill(&self, p: &ProcessInfo) -> Result<bool, Error> {
         match self.system_processes.process(p.pid()) {
-            Some(p) => p.kill(),
-            None => true
+            Some(p) => Ok(p.kill()),
+            None => Ok(true)
         }
     }
 }

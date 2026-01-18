@@ -1,4 +1,3 @@
-mod errors;
 mod process_tree;
 mod tracker;
 mod time;
@@ -7,8 +6,10 @@ mod scheduler;
 use std::process::exit;
 use std::time::Duration;
 use clap::Parser;
-use crate::errors::Error;
-use crate::scheduler::{timed_game_session, log_games_found, warn_game_session_near_end, GameTrackerScheduler, clock_tampering, timing_tampering};
+use common::Error;
+use crate::scheduler::{timed_game_session, log_games_found,
+                       warn_game_session_near_end, GameTrackerScheduler,
+                       clock_tampering};
 use crate::time::{format_duration, DurationParser};
 use crate::tracker::GameTracker;
 
@@ -40,14 +41,13 @@ struct Arguments {
 fn main() {
     let args = Arguments::parse();
     let mut tracker = GameTracker::new();
-    tracker.load_config("configs/linux.toml")
+    tracker.load_config("game-tracker/configs/linux.toml")
         .expect("Failed to load config");
     let mut scheduler = GameTrackerScheduler::using(Duration::from_secs(args.scan_interval), tracker);
 
     // log games found
     scheduler.add(log_games_found());
     scheduler.add(clock_tampering());
-    scheduler.add(timing_tampering());
 
     // kill games once session reaches it end
     if let Some(session_duration) = args.session_duration && !args.monitor_only {
@@ -74,6 +74,9 @@ fn main() {
             Err(Error::DesynchronizedTimerError(value)) => {
                 println!("Potential tampering detected - elapsed detected a desynchronization \
                 between a timer and the system clock ({} seconds). Restarting scheduler...", value);
+            },
+            Err(Error::TamperingDetected(name, duration)) => {
+                println!("Tampering detected - execution of {} lasted {} seconds", name, duration);
             }
             Err(unhandled) => {
                 println!("There was an unexpected error: {:?}", unhandled);

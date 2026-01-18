@@ -1,0 +1,15 @@
+[package]
+name = "game-tracker"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+sysinfo = { version = "0.37.2", features = ["system"] }
+clap = { version = "4.5.53", features = ["std", "derive"]}
+serde = { version = "1.0.228", features = ["derive"] }
+toml = "0.9.8"
+chrono = "0.4.42"
+regex = "1.12.2"
+notify-rust = "4.11.7"
+tampering-profiler = { path = "../tampering-profiler" }
+common = { path = "../common" }

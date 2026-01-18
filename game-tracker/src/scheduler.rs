@@ -1,7 +1,7 @@
 use std::thread;
 use std::time::{Duration, Instant};
 use notify_rust::Notification;
-use crate::errors::Error;
+use common::Error;
 use crate::time::format_duration;
 use crate::tracker::GameTracker;
 
@@ -44,14 +44,12 @@ impl GameTrackerScheduler {
     }
 
     pub fn start(&mut self) -> Result<(), Error> {
-        let current_day = chrono::Local::now();
-
         loop {
             // time execution
             let start = Instant::now();
 
             // update tracker
-            self.tracker.update_time_tracker();
+            self.tracker.update_time_tracker()?;
 
 
             // execute SubTasks
@@ -113,7 +111,7 @@ pub fn timed_game_session(duration: u64) -> SubTask {
                 .flat_map(|(_, proc)| proc.into_iter());
 
             for proc in known_games {
-                tracker.kill(proc);
+                tracker.kill(proc)?;
             }
         }
         Ok(())
@@ -142,7 +140,7 @@ pub fn clock_tampering() -> SubTask {
     let start_time = chrono::Local::now();
     let uptime = Instant::now();
 
-    Box::new(move |tracker: &mut GameTracker| {
+    Box::new(move |_: &mut GameTracker| {
         println!("{} {}", chrono::Local::now().signed_duration_since(start_time), uptime.elapsed().as_secs());
         let clock_estimation = chrono::Local::now()
             .signed_duration_since(start_time).num_seconds() as u64;
@@ -154,18 +152,4 @@ pub fn clock_tampering() -> SubTask {
 
         Ok(())
     })
-}
-
-pub fn timed_execution() -> Duration {
-    let start = Instant::now();
-
-    for _ in 0..10_000 {
-        std::hint::black_box(
-            unsafe {
-                std::ptr::read_volatile(&0u8)
-            }
-        );
-    }
-
-    start.elapsed()
 }

@@ -1,16 +1,3 @@
-[package]
-name = "game-tracker"
-version = "0.1.0"
-edition = "2024"
-
-
-[dependencies]
-sysinfo = { version = "0.37.2", features = ["system"] }
-clap = { version = "4.5.53", features = ["std", "derive"]}
-notify-rust = "4.11.7"
-serde = { version = "1.0.228", features = ["derive"] }
-thiserror = "2.0.17"
-toml = "0.9.8"
-chrono = "0.4.42"
-regex = "1.12.2"
-tampering_profiler = {path = "src/tampering_profiler"}
+[workspace]
+resolver = "3"
+members = ["common","game-tracker", "tampering-profiler"]
