@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::collections::btree_map::{Iter, IterMut};
 use std::hash::{Hash};
 use sysinfo::{Pid, Process};
+use tampering_profiler::profile_call;
 
 #[derive(Debug, Clone)]
 pub struct ProcessInfo {

@@ -1,7 +1,5 @@
-use std::ops::Add;
 use std::thread;
-use std::time::{Duration, Instant, SystemTime};
-use chrono::{Days, Timelike};
+use std::time::{Duration, Instant};
 use notify_rust::Notification;
 use crate::errors::Error;
 use crate::time::format_duration;
@@ -68,7 +66,6 @@ impl GameTrackerScheduler {
         }
     }
 }
-
 
 fn notify(msg: &str) -> Result<(), Error> {
     Notification::new()
@@ -137,7 +134,6 @@ pub fn warn_game_session_near_end(threshold: f64, duration: u64) -> SubTask {
                         threshold, format_duration(duration)).as_str()
             )?;
         }
-
         Ok(())
     })
 }
@@ -172,25 +168,4 @@ pub fn timed_execution() -> Duration {
     }
 
     start.elapsed()
-}
-
-pub fn timing_tampering() -> SubTask {
-    let mut average: u128 = 0;
-    for _ in 0..10 {
-        average += timed_execution().as_nanos();
-    }
-
-    average /= 10;
-
-    Box::new(move |tracker: &mut GameTracker| {
-        let elapsed = timed_execution();
-
-        // TODO : this does not work as intented - maybe calculate a % increase based off last iteration ?
-        println!("Reading 10_000 bytes took {} secs", elapsed.as_micros());
-        if elapsed.as_nanos() > average {
-            println!("TAMPERING DETECTED!");
-        }
-
-        Ok(())
-    })
 }

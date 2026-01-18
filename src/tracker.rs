@@ -6,6 +6,7 @@ use std::io::Read;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use sysinfo::{ProcessRefreshKind, RefreshKind, System, UpdateKind};
+use tampering_profiler::profile_call;
 use crate::errors::Error;
 use crate::process_tree::{ProcessInfo, ProcessTree};
 
@@ -188,6 +189,7 @@ impl GameTracker {
         &self.processes
     }
 
+    #[profile_call]
     pub fn load_config(&mut self, config_path: &str) -> Result<(), Error> {
         let mut file = fs::File::open(config_path)?;
         let mut buffer = vec![];
@@ -208,6 +210,7 @@ impl GameTracker {
         }
     }
 
+    #[profile_call]
     pub fn update_time_tracker(&mut self) {
         self.system_processes.refresh_all();
         self.processes = ProcessTree::from(self.system_processes.processes());
@@ -228,6 +231,7 @@ impl GameTracker {
         }
     }
 
+    #[profile_call]
     pub fn kill(&self, p: &ProcessInfo) -> bool {
         // todo : test whether this is usefull or not - probably isn't
         // match p.children() {
