@@ -2,14 +2,14 @@ mod process_tree;
 mod tracker;
 mod time;
 mod scheduler;
+mod db;
 
 use std::process::exit;
 use std::time::Duration;
 use clap::Parser;
 use common::Error;
-use crate::scheduler::{timed_game_session, log_games_found,
-                       warn_game_session_near_end, GameTrackerScheduler,
-                       clock_tampering};
+use crate::db::init_database;
+use crate::scheduler::{timed_game_session, log_games_found, warn_game_session_near_end, GameTrackerScheduler, clock_tampering, save_stats};
 use crate::time::{format_duration, DurationParser};
 use crate::tracker::GameTracker;
 
@@ -44,10 +44,12 @@ fn main() {
     tracker.load_config("game-tracker/configs/linux.toml")
         .expect("Failed to load config");
     let mut scheduler = GameTrackerScheduler::using(Duration::from_secs(args.scan_interval), tracker);
+    let connection = init_database().expect("Failed to initialize database");
 
     // log games found
     scheduler.add(log_games_found());
     scheduler.add(clock_tampering());
+    scheduler.add(save_stats().expect("Failed to save stats"));
 
     // kill games once session reaches it end
     if let Some(session_duration) = args.session_duration && !args.monitor_only {

@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, HashMap};
 use std::collections::btree_map::{Iter, IterMut};
 use std::hash::{Hash};
+use chrono::{Utc};
 use sysinfo::{Pid, Process};
-use tampering_profiler::profile_call;
 
 #[derive(Debug, Clone)]
 pub struct ProcessInfo {
@@ -10,7 +10,8 @@ pub struct ProcessInfo {
     name: String,
     cmd: Vec<String>,
     pid: Pid,
-    run_time: u64
+    run_time: u64,
+    start_time: u64,
 }
 
 impl Eq for ProcessInfo {
@@ -46,6 +47,7 @@ impl ProcessInfo {
             cmd: Vec::new(),
             run_time: 0,
             pid: Pid::from_u32(0),
+            start_time: Utc::now().timestamp() as u64,
         }
     }
 
@@ -56,6 +58,7 @@ impl ProcessInfo {
             cmd: proc.cmd().iter().map(|s| s.to_string_lossy().to_string()).collect(),
             run_time: proc.run_time(),
             pid: proc.pid().clone(),
+            start_time: proc.start_time()
         }
     }
 
@@ -92,6 +95,10 @@ impl ProcessInfo {
     pub fn cmd_contains(&self, s: &str) -> bool {
         self.cmd().contains(s)
     }
+
+    pub fn name(&self) -> &str { &self.name }
+
+    pub fn start_time(&self) -> u64 { self.start_time }
 
     pub fn find(&self, s: &str) -> Option<&ProcessInfo> {
         if self.cmd_contains(s) || self.name.contains(s) {

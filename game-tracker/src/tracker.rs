@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use sysinfo::{ProcessRefreshKind, RefreshKind, System, UpdateKind};
 use common::Error;
-use tampering_profiler::profile_call;
+use tampering_profiler::check_tampering;
 use crate::process_tree::{ProcessInfo, ProcessTree};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -127,7 +127,6 @@ pub struct GameTracker {
     scanner_config: Games,
     processes: ProcessTree,
     games_found: BTreeMap<String, HashSet<ProcessInfo>>,
-    uptime: chrono::Duration,
 }
 
 impl GameTracker {
@@ -147,7 +146,6 @@ impl GameTracker {
             scanner_config: Games::new(),
             processes: ProcessTree::new(),
             games_found: BTreeMap::new(),
-            uptime: chrono::Duration::seconds(0),
         }
     }
 
@@ -158,7 +156,6 @@ impl GameTracker {
             scanner_config: BTreeMap::new(),
             processes: ProcessTree::new(),
             games_found: BTreeMap::new(),
-            uptime: chrono::Duration::seconds(0),
         }
     }
 
@@ -189,7 +186,7 @@ impl GameTracker {
         &self.processes
     }
 
-    #[profile_call]
+    #[check_tampering]
     pub fn load_config(&mut self, config_path: &str) -> Result<(), Error> {
         let mut file = fs::File::open(config_path)?;
         let mut buffer = vec![];
@@ -210,7 +207,7 @@ impl GameTracker {
         }
     }
 
-    #[profile_call]
+    #[check_tampering]
     pub fn update_time_tracker(&mut self) -> Result<(), Error> {
         self.system_processes.refresh_all();
         self.processes = ProcessTree::from(self.system_processes.processes());
@@ -233,7 +230,7 @@ impl GameTracker {
         Ok(())
     }
 
-    #[profile_call]
+    #[check_tampering]
     pub fn kill(&self, p: &ProcessInfo) -> Result<bool, Error> {
         match self.system_processes.process(p.pid()) {
             Some(p) => Ok(p.kill()),
