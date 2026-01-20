@@ -125,8 +125,8 @@ fn find_game<'a>(p: &'a ProcessInfo, games: &Games) -> Option<(String, &'a Proce
 #[derive(Debug)]
 pub struct GameTracker {
     system_processes: System,
-    scanner_config: Games,
-    processes: ProcessTree,
+    installed_games: Games,
+    snapshot: ProcessTree,
     games_found: BTreeMap<String, HashSet<ProcessInfo>>,
     gaming_session: Option<DailyGamingSession>
 }
@@ -145,8 +145,8 @@ impl GameTracker {
                             .with_exe(UpdateKind::OnlyIfNotSet)
                             .with_user(UpdateKind::OnlyIfNotSet)
             )),
-            scanner_config: Games::new(),
-            processes: ProcessTree::new(),
+            installed_games: Games::new(),
+            snapshot: ProcessTree::new(),
             games_found: BTreeMap::new(),
             gaming_session: None
         }
@@ -182,7 +182,7 @@ impl GameTracker {
     }
 
     pub fn process_tree(&self) -> &ProcessTree {
-        &self.processes
+        &self.snapshot
     }
 
     #[check_tampering]
@@ -199,7 +199,7 @@ impl GameTracker {
                         platform.load();
                 });
 
-                self.scanner_config = config;
+                self.installed_games = config;
                 Ok(())
             },
             Err(e) => Err(e.into())
@@ -209,10 +209,10 @@ impl GameTracker {
     #[check_tampering]
     pub fn update_time_tracker(&mut self) -> Result<(), Error> {
         self.system_processes.refresh_all();
-        self.processes = ProcessTree::from(self.system_processes.processes());
+        self.snapshot = ProcessTree::from(self.system_processes.processes());
 
-        for (_, process) in self.processes.iter() {
-            if let Some((game_name, game_process)) = find_game(process, &self.scanner_config) {
+        for (_, process) in self.snapshot.iter() {
+            if let Some((game_name, game_process)) = find_game(process, &self.installed_games) {
                 let game_processes = self.games_found.entry(game_name)
                     .or_insert(HashSet::new());
 
@@ -227,13 +227,13 @@ impl GameTracker {
         }
 
         let time_played = self.total_time_played();
-        if let Some(session) = self.gaming_session.as_mut() {
-            if session.day_ended() {
-                session.restart_session()?;
+        if let Some(gaming_session_tracker) = self.gaming_session.as_mut() {
+            if gaming_session_tracker.is_passed_midnight() {
+                gaming_session_tracker.restart_session()?;
             }
 
-            if session.should_session_end(time_played) {
-                session.end_session();
+            if gaming_session_tracker.is_session_over(time_played) {
+                gaming_session_tracker.end_session();
             }
         }
 

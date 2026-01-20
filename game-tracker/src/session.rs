@@ -38,11 +38,11 @@ impl DailyGamingSession {
         Ok(session)
     }
 
-    pub fn should_session_end(&self, time_played: Duration) -> bool {
+    pub fn is_session_over(&self, time_played: Duration) -> bool {
         self.duration <= time_played
     }
 
-    pub fn day_ended(&self) -> bool {
+    pub fn is_passed_midnight(&self) -> bool {
         self.start_time >= self.end_of_day
     }
 

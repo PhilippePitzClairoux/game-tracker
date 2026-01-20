@@ -4,6 +4,9 @@ use std::hash::{Hash};
 use chrono::{Utc};
 use sysinfo::{Pid, Process};
 
+/// ProcessInfo represents a running process. It is based off sysinfo::Process.
+/// The key differences are the hash functions (that way we can insert them in a BTree
+/// in order to optimize searches/inserts).
 #[derive(Debug, Clone)]
 pub struct ProcessInfo {
     children: Option<ProcessTree>,
@@ -98,18 +101,23 @@ impl ProcessInfo {
 
     pub fn start_time(&self) -> u64 { self.start_time }
 
+    /// This function searches a string `s` inside a ProcessInfo (cmd and name)
+    /// Goes through the list of children (if they are present)
     pub fn find(&self, s: &str) -> Option<&ProcessInfo> {
         if self.cmd_contains(s) || self.name.contains(s) {
             return Some(self)
         }
 
-        if self.children.is_some() {
-            for (_, n) in self.children.as_ref().unwrap().iter() {
-                match n.find(s) {
-                    Some(found) => return Some(found),
-                    None => ()
+        match self.children {
+            Some(ref children) => {
+                for (_, n) in children.iter() {
+                    match n.find(s) {
+                        Some(found) => return Some(found),
+                        None => ()
+                    };
                 }
             }
+            None => ()
         }
 
         None
@@ -121,8 +129,8 @@ impl ProcessInfo {
             format!("{}|__<{}> {}\n", " ".repeat(level), self.pid, self.cmd())
         );
 
-        if self.children.is_some() {
-            for (_, v) in self.children.as_ref().unwrap().iter() {
+        if let Some(children) = self.children.as_ref() {
+            for (_, v) in children.iter() {
                 output += v.to_string(level+1).as_str();
             }
         }
@@ -132,6 +140,9 @@ impl ProcessInfo {
 
 }
 
+/// This class represents a process tree. It's a BTree of ProcessInfo.
+/// This structure is recursive and is basically a wrapper around BTreeMap
+/// to facilitate searching.
 #[derive(Debug, Clone)]
 pub struct ProcessTree {
     inner: BTreeMap<Pid, Box<ProcessInfo>>
@@ -153,8 +164,8 @@ impl ProcessTree {
         }
 
         for node in self.inner.values_mut() {
-            if node.children.is_some() {
-                if node.children.as_mut().unwrap().insert_process(proc, parent) {
+            if let Some(children) = node.children.as_mut() {
+                if children.insert_process(proc, parent) {
                     return true;
                 }
             }
@@ -169,7 +180,7 @@ impl ProcessTree {
 
         BTreeMap::from_iter(processes.iter()).iter()
             .for_each(|(pid, process)| {
-                if process.parent().is_some() && process.parent().unwrap().as_u32() != 1 {
+                if let Some(parent) = process.parent() && parent.as_u32() != 1 {
                     tree.insert_process(process, process.parent().unwrap());
                 } else {
                     tree.inner.insert(

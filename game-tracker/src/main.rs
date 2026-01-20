@@ -76,7 +76,7 @@ fn main() {
                 ((threshold / 100_f64) * session_duration.to_seconds() as f64).floor() as i64
             );
 
-            println!("User warning enabled - threshold={}, warning_after=\"{}\"",
+            println!("User warning enabled - threshold={}%, warning_after=\"{}\"",
                      threshold, format_duration(&value)
             );
 
