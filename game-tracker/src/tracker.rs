@@ -6,7 +6,7 @@ use std::io::Read;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use sysinfo::{ProcessRefreshKind, RefreshKind, System, UpdateKind};
-use common::Error;
+use crate::errors::Error;
 use tampering_profiler::check_tampering;
 use crate::process_tree::{ProcessInfo, ProcessTree};
 

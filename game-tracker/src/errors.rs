@@ -3,11 +3,18 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error(transparent)]
-    IOError(#[from] std::io::Error),
+
+    #[error("could not parse session duration")]
+    SessionDurationParserError,
 
     #[error("could not deserialize toml file")]
     TOMLDeserializeError(#[from] toml::de::Error),
+
+    #[error("clock tampering detected")]
+    ClockTamperingError,
+
+    #[error(transparent)]
+    IOError(#[from] std::io::Error),
 
     #[error(transparent)]
     NotificationError(#[from]  notify_rust::error::Error),
@@ -15,15 +22,15 @@ pub enum Error {
     #[error(transparent)]
     DesynchronizedTimerError(#[from] SystemTimeError),
 
-    #[error("could not parse session duration")]
-    SessionDurationParserError,
-
     #[error(transparent)]
     RegexError(#[from] regex::Error),
 
     #[error(transparent)]
     ParseIntError(#[from] std::num::ParseIntError),
 
-    #[error("tapering detected - excessive function execution time")]
-    TamperingDetected(String, u64)
+    #[error(transparent)]
+    ProfilerError(#[from] tampering_profiler_support::Errors),
+
+    #[error(transparent)]
+    DatabaseError(#[from] rusqlite::Error),
 }

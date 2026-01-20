@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use chrono::TimeDelta;
 use regex::{Matches, Regex, RegexSet};
-use common::Error;
+use crate::errors::Error;
 
 #[derive(Debug, Default, Clone, PartialEq, PartialOrd)]
 pub struct DurationParser {

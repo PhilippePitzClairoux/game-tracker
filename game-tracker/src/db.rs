@@ -1,7 +1,8 @@
 use rusqlite::Connection;
+use crate::errors::Error;
 use crate::process_tree::ProcessInfo;
 
-pub fn init_database() -> Result<Connection, rusqlite::Error> {
+pub fn init_database() -> Result<Connection, Error> {
     let conn = Connection::open("db.sqlite")?;
     conn.execute(
         "CREATE TABLE IF NOT EXISTS game_tracker (
@@ -18,7 +19,7 @@ pub fn init_database() -> Result<Connection, rusqlite::Error> {
     Ok(conn)
 }
 
-pub fn upsert_process(connection: &mut Connection, proc: &ProcessInfo, game_name: &str) -> Result<(), rusqlite::Error> {
+pub fn upsert_process(connection: &mut Connection, proc: &ProcessInfo, game_name: &str) -> Result<(), Error> {
     let mut statement = connection.prepare("
     INSERT INTO game_tracker (pid, name, cmd, game_name, run_time, start_time)
         VALUES (?1, ?2, ?3, ?4, $5, DATETIME(?6, 'unixepoch'))

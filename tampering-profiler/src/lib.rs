@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, };
+use syn::{parse_macro_input};
 
 #[proc_macro_attribute]
 pub fn check_tampering(_attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -17,7 +17,6 @@ pub fn check_tampering(_attr: TokenStream, item: TokenStream) -> TokenStream {
         ).to_compile_error().into()
     }
 
-    eprintln!("{:?} {:?}", vis, sig);
     quote::quote! {
         #vis #sig {
             let __start = std::time::Instant::now();
@@ -26,9 +25,9 @@ pub fn check_tampering(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
             let __elapsed = __start.elapsed();
             if __elapsed.as_secs() > 0 {
-                return Err(::common::Error::TamperingDetected(
+                return Err(tampering_profiler_support::Errors::TamperingDetected(
                     stringify!(#name).to_string(),
-                    __elapsed.as_secs())
+                    __elapsed.as_secs()).into()
                 );
             }
 

@@ -1,7 +1,7 @@
 use std::thread;
 use std::time::{Duration, Instant};
 use notify_rust::Notification;
-use common::Error;
+use crate::errors::Error;
 use crate::db::{init_database, upsert_process};
 use crate::time::format_duration;
 use crate::tracker::GameTracker;
@@ -142,26 +142,25 @@ pub fn clock_tampering() -> SubTask {
     let uptime = Instant::now();
 
     Box::new(move |_: &mut GameTracker| {
-        println!("{} {}", chrono::Local::now().signed_duration_since(start_time), uptime.elapsed().as_secs());
         let clock_estimation = chrono::Local::now()
             .signed_duration_since(start_time).num_seconds() as u64;
         let instant_estimation = uptime.elapsed().as_secs();
 
         if clock_estimation > instant_estimation {
-            println!("CLOCK TAMPERING DETECTED!")
+            return Err(Error::ClockTamperingError);
         }
 
         Ok(())
     })
 }
 
-pub fn save_stats() -> Result<SubTask, rusqlite::Error> {
+pub fn save_stats() -> Result<SubTask, Error> {
     let mut connection = init_database()?;
 
     Ok(Box::new(move |tracker: &mut GameTracker| {
         for (name, processes) in tracker.gametime_tracker() {
             for process in processes {
-                upsert_process(&mut connection, &process, name).expect("failed to upsert process");
+                upsert_process(&mut connection, &process, name)?;
             }
         }
         Ok(())

@@ -3,12 +3,14 @@ mod tracker;
 mod time;
 mod scheduler;
 mod db;
+mod errors;
 
 use std::process::exit;
 use std::time::Duration;
 use clap::Parser;
-use common::Error;
+use tampering_profiler_support::Errors::TamperingDetected;
 use crate::db::init_database;
+use crate::errors::Error;
 use crate::scheduler::{timed_game_session, log_games_found, warn_game_session_near_end, GameTrackerScheduler, clock_tampering, save_stats};
 use crate::time::{format_duration, DurationParser};
 use crate::tracker::GameTracker;
@@ -49,7 +51,11 @@ fn main() {
     // log games found
     scheduler.add(log_games_found());
     scheduler.add(clock_tampering());
-    scheduler.add(save_stats().expect("Failed to save stats"));
+
+    match save_stats() {
+        Ok(task) => { scheduler.add(task); },
+        Err(e) => println!("will not save statistics to database (save_stats() failed) : {:?}", e),
+    }
 
     // kill games once session reaches it end
     if let Some(session_duration) = args.session_duration && !args.monitor_only {
@@ -77,8 +83,12 @@ fn main() {
                 println!("Potential tampering detected - elapsed detected a desynchronization \
                 between a timer and the system clock ({} seconds). Restarting scheduler...", value);
             },
-            Err(Error::TamperingDetected(name, duration)) => {
+            Err(Error::ProfilerError(TamperingDetected(name, duration))) => {
                 println!("Tampering detected - execution of {} lasted {} seconds", name, duration);
+            }
+            Err(Error::ClockTamperingError) => {
+                println!("Clock tampering detected - someone changed the local time in order to \
+                potentially tamper with allowed session duration");
             }
             Err(unhandled) => {
                 println!("There was an unexpected error: {:?}", unhandled);
