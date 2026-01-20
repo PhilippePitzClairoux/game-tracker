@@ -4,14 +4,15 @@ mod time;
 mod scheduler;
 mod db;
 mod errors;
+mod session;
 
 use std::process::exit;
 use std::time::Duration;
 use clap::Parser;
 use tampering_profiler_support::Errors::TamperingDetected;
-use crate::db::init_database;
 use crate::errors::Error;
 use crate::scheduler::{timed_game_session, log_games_found, warn_game_session_near_end, GameTrackerScheduler, clock_tampering, save_stats};
+use crate::session::DailyGamingSession;
 use crate::time::{format_duration, DurationParser};
 use crate::tracker::GameTracker;
 
@@ -35,7 +36,7 @@ struct Arguments {
     warning_threshold: Option<f64>,
 
     /// Monitor games only
-    #[clap(long, default_value_t = true)]
+    #[clap(long, default_value_t = false)]
     monitor_only: bool
 }
 
@@ -46,7 +47,6 @@ fn main() {
     tracker.load_config("game-tracker/configs/linux.toml")
         .expect("Failed to load config");
     let mut scheduler = GameTrackerScheduler::using(Duration::from_secs(args.scan_interval), tracker);
-    let connection = init_database().expect("Failed to initialize database");
 
     // log games found
     scheduler.add(log_games_found());
@@ -58,21 +58,28 @@ fn main() {
     }
 
     // kill games once session reaches it end
-    if let Some(session_duration) = args.session_duration && !args.monitor_only {
+    if let Some(session_duration) = args.session_duration{
         println!("Session duration enabled - total duration : {}", session_duration.to_string());
-        scheduler.add(
-            timed_game_session(session_duration.to_seconds())
+        scheduler.modify_tracker().add_gaming_session(
+                DailyGamingSession::from_duration(session_duration.to_duration())
+                    .expect("could not create a daily gaming session")
         );
+
+        if !args.monitor_only {
+            scheduler.add(timed_game_session());
+        }
 
         // setup warning when session end if near
         if args.warn {
             let threshold  = args.warning_threshold.unwrap_or(90.0);
-            let value = ((threshold / 100_f64) * session_duration.to_seconds() as f64)
-                .floor() as u64;
+            let value = chrono::Duration::seconds(
+                ((threshold / 100_f64) * session_duration.to_seconds() as f64).floor() as i64
+            );
 
             println!("User warning enabled - threshold={}, warning_after=\"{}\"",
-                     threshold, format_duration(value)
+                     threshold, format_duration(&value)
             );
+
             scheduler.add(warn_game_session_near_end(threshold, value));
         }
     }

@@ -13,6 +13,12 @@ pub enum Error {
     #[error("clock tampering detected")]
     ClockTamperingError,
 
+    #[error("could not calculate when tomorrow is")]
+    CalculateEndOfDayError,
+
+    #[error("the end of the day (since start_time was set) has been reached")]
+    EndOfDayReachedError,
+
     #[error(transparent)]
     IOError(#[from] std::io::Error),
 

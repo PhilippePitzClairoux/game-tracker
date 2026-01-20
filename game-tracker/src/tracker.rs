@@ -9,6 +9,7 @@ use sysinfo::{ProcessRefreshKind, RefreshKind, System, UpdateKind};
 use crate::errors::Error;
 use tampering_profiler::check_tampering;
 use crate::process_tree::{ProcessInfo, ProcessTree};
+use crate::session::DailyGamingSession;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum ExpectedEntityType {
@@ -127,6 +128,7 @@ pub struct GameTracker {
     scanner_config: Games,
     processes: ProcessTree,
     games_found: BTreeMap<String, HashSet<ProcessInfo>>,
+    gaming_session: Option<DailyGamingSession>
 }
 
 impl GameTracker {
@@ -146,34 +148,32 @@ impl GameTracker {
             scanner_config: Games::new(),
             processes: ProcessTree::new(),
             games_found: BTreeMap::new(),
+            gaming_session: None
         }
     }
 
-    #[allow(dead_code)]
-    pub fn from(sys: System) -> Self {
-        GameTracker {
-            system_processes: sys,
-            scanner_config: BTreeMap::new(),
-            processes: ProcessTree::new(),
-            games_found: BTreeMap::new(),
-        }
+    pub fn add_gaming_session(&mut self, gaming_session: DailyGamingSession) {
+        self.gaming_session = Some(gaming_session);
     }
 
     pub fn gametime_tracker(&self) -> &BTreeMap<String, HashSet<ProcessInfo>> {
         &self.games_found
     }
 
-    pub fn get_total_time_played(&self) -> u64 {
-        let mut total: u64 = 0;
+    pub fn total_time_played(&self) -> chrono::Duration {
+        let mut total_seconds: u64 = 0;
 
         self.games_found.iter()
             .flat_map(|(_, processes)| processes.into_iter())
-            .for_each(|proc| total += proc.run_time());
+            .for_each(|proc| total_seconds += proc.run_time());
 
-        total
+        chrono::Duration::seconds(total_seconds as i64)
     }
 
-    #[allow(dead_code)]
+    pub fn session(&self) -> Option<&DailyGamingSession> {
+        self.gaming_session.as_ref()
+    }
+
     pub fn try_from(config_path: &str) -> Result<Self, Error> {
         let mut s = Self::new();
         s.load_config(config_path)?;
@@ -181,7 +181,6 @@ impl GameTracker {
         Ok(s)
     }
 
-    #[allow(dead_code)]
     pub fn process_tree(&self) -> &ProcessTree {
         &self.processes
     }
@@ -224,6 +223,17 @@ impl GameTracker {
                 }
 
                 game_processes.insert(game_process.clone());
+            }
+        }
+
+        let time_played = self.total_time_played();
+        if let Some(session) = self.gaming_session.as_mut() {
+            if session.day_ended() {
+                session.restart_session()?;
+            }
+
+            if session.should_session_end(time_played) {
+                session.end_session();
             }
         }
 

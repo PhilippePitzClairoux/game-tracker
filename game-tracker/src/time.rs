@@ -1,13 +1,13 @@
 use std::str::FromStr;
-use chrono::TimeDelta;
+use chrono::Duration;
 use regex::{Matches, Regex, RegexSet};
 use crate::errors::Error;
 
 #[derive(Debug, Default, Clone, PartialEq, PartialOrd)]
 pub struct DurationParser {
-    hours: u64,
-    minutes: u64,
-    seconds: u64,
+    hours: i64,
+    minutes: i64,
+    seconds: i64,
 }
 
 fn parse_hms_duration(extractor: Matches, session_duration: &mut DurationParser) -> Result<(), Error> {
@@ -17,9 +17,9 @@ fn parse_hms_duration(extractor: Matches, session_duration: &mut DurationParser)
             .ok_or(Error::SessionDurationParserError)?;
 
         match time_modifier {
-            'h'|'H' => session_duration.hours += u64::from_str(base_str.as_str())?,
-            'm'|'M' => session_duration.minutes += u64::from_str(base_str.as_str())?,
-            's'|'S' => session_duration.seconds += u64::from_str(base_str.as_str())?,
+            'h'|'H' => session_duration.hours += i64::from_str(base_str.as_str())?,
+            'm'|'M' => session_duration.minutes += i64::from_str(base_str.as_str())?,
+            's'|'S' => session_duration.seconds += i64::from_str(base_str.as_str())?,
             _ => return Err(Error::SessionDurationParserError),
         }
     }
@@ -32,7 +32,7 @@ fn parse_colon_duration(time: &str, session_duration: &mut DurationParser) -> Re
         .collect::<Vec<&str>>();
 
     for (index, value) in parts.iter_mut().enumerate() {
-        let parsed_value = value.parse::<u64>()?;
+        let parsed_value = value.parse::<i64>()?;
         match index {
             0 => session_duration.hours += parsed_value,
             1 => session_duration.minutes += parsed_value,
@@ -73,26 +73,25 @@ impl FromStr for DurationParser {
 
 impl DurationParser {
 
-    pub fn to_seconds(&self) -> u64 {
+    pub fn to_seconds(&self) -> i64 {
         (self.hours * 60 * 60) + (self.minutes * 60) + self.seconds
     }
 
     pub fn to_string(&self) -> String {
-        format!("{} hour(s) {} minute(s) {} second(s)",
-                self.hours, self.minutes, self.seconds
-        )
+        format_duration(&self.to_duration())
+    }
+
+    pub fn to_duration(&self) -> Duration {
+        Duration::seconds(self.to_seconds())
     }
 
 }
 
-pub fn format_duration(duration: u64) -> String {
-    let delta = TimeDelta::new(duration as i64, 0)
-        .expect("could not convert to time delta");
-
-    let days = delta.num_days();
-    let hours = delta.num_hours() - (24 * delta.num_days());
-    let minutes = delta.num_minutes() - (delta.num_hours() * 60);
-    let seconds = delta.num_seconds() - (delta.num_minutes() * 60);
+pub fn format_duration(duration: &Duration) -> String {
+    let days = duration.num_days();
+    let hours = duration.num_hours() - (24 * duration.num_days());
+    let minutes = duration.num_minutes() - (duration.num_hours() * 60);
+    let seconds = duration.num_seconds() - (duration.num_minutes() * 60);
 
     format!("{} days {} hour(s) {} minute(s) {} second(s)",
             days, hours, minutes, seconds

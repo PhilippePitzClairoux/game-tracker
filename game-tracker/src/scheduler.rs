@@ -39,6 +39,10 @@ impl GameTrackerScheduler {
         }
     }
 
+    pub fn modify_tracker(&mut self) -> &mut GameTracker {
+        &mut self.tracker
+    }
+
     pub fn add(&mut self, f: SubTask) -> &mut Self {
         self.sub_tasks.push(f);
         self
@@ -92,8 +96,10 @@ pub fn log_games_found() -> SubTask {
             });
 
         for (proc, game_name) in games_found {
+            let dur = chrono::Duration::seconds(proc.run_time() as i64);
             output += format!("{} '{}' has been running for: {}\n",
-                              proc.pid(), game_name, format_duration(proc.run_time())).as_str()
+                              proc.pid(), game_name, format_duration(&dur)
+            ).as_str()
         }
 
         println!("{}", output);
@@ -101,11 +107,9 @@ pub fn log_games_found() -> SubTask {
     })
 }
 
-pub fn timed_game_session(duration: u64) -> SubTask {
+pub fn timed_game_session() -> SubTask {
     Box::new(move |tracker: &mut GameTracker| {
-        let time_played = tracker.get_total_time_played();
-
-        if time_played >= duration {
+        if let Some(session) = tracker.session() && session.is_session_ended() {
             notify("Play time's over buddy! Go touch grass :-)")?;
 
             let known_games = tracker.gametime_tracker().iter()
@@ -119,20 +123,27 @@ pub fn timed_game_session(duration: u64) -> SubTask {
     })
 }
 
-pub fn warn_game_session_near_end(threshold: f64, duration: u64) -> SubTask {
+pub fn warn_game_session_near_end(threshold: f64, duration: chrono::Duration) -> SubTask {
     let mut was_warned = false;
 
     Box::new(move |tracker: &mut GameTracker| {
-        let time_played = tracker.get_total_time_played();
-        if !was_warned && time_played >= duration {
-            println!("Warning threshold reached : {threshold}");
-            was_warned = true;
+        if let Some(session) = tracker.session() {
+            if !was_warned && !session.is_session_ended() && tracker.total_time_played() > duration {
+                println!("Warning threshold reached : {threshold}");
+                was_warned = true;
 
-            notify(
-                format!("{}% of session played - {}",
-                        threshold, format_duration(duration)).as_str()
-            )?;
+                notify(
+                    format!(
+                        "{}% of session gaming played ({})",
+                        threshold, format_duration(&duration)
+                    ).as_str()
+                )?;
+            }
+
+        } else {
+            was_warned = false;
         }
+
         Ok(())
     })
 }

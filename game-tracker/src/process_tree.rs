@@ -39,7 +39,6 @@ impl Hash for ProcessInfo {
 
 impl ProcessInfo {
 
-    #[allow(dead_code)]
     pub fn new() -> ProcessInfo {
         ProcessInfo {
             children: None,
@@ -74,7 +73,6 @@ impl ProcessInfo {
         }
     }
 
-    #[allow(dead_code)]
     pub fn is_child_present(&self, p: &Pid) -> bool {
         self.children.as_ref()
             .is_some_and(|child| child.contains_key(p))
