@@ -1,4 +1,5 @@
-use rusqlite::Connection;
+use chrono::{DateTime, Duration, Local, Timelike};
+use rusqlite::{params, Connection};
 use crate::errors::Error;
 use crate::process_tree::ProcessInfo;
 
@@ -26,8 +27,22 @@ pub fn upsert_process(connection: &mut Connection, proc: &ProcessInfo, game_name
     ON CONFLICT (pid, name, cmd, start_time) DO UPDATE SET run_time = ?5
     ")?;
 
-    statement.execute((proc.pid().as_u32(), proc.name(), proc.cmd(), game_name,
-        proc.run_time() as i64, proc.start_time() as i64))?;
+    statement.execute(params![proc.pid().as_u32(), proc.name(), proc.cmd(), game_name,
+        proc.run_time() as i64, proc.start_time() as i64])?;
 
     Ok(())
+}
+
+pub fn time_played_by_date(connection: &Connection, date: DateTime<Local>) -> Result<Duration, Error> {
+    let mut statement = connection.prepare("
+        SELECT SUM(run_time) as total
+        FROM game_tracker
+        WHERE date(game_tracker.start_time) like date(?1)
+    ")?;
+    let total: i64 = statement.query_one(
+        params![date.to_rfc3339()],
+        |row| row.get(0)
+    )?;
+
+    Ok(Duration::seconds(total))
 }

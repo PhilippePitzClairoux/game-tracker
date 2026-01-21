@@ -2,7 +2,7 @@ use chrono::{DateTime, Duration, Local};
 use crate::errors::Error;
 
 fn calculate_end_of_day(day: DateTime<Local>) -> Result<DateTime<Local>, Error> {
-    (day + chrono::Duration::days(1))
+    (day + Duration::days(1))
         .date()
         .and_hms_opt(0, 0, 0)
         .ok_or_else(|| Error::CalculateEndOfDayError)
@@ -39,11 +39,11 @@ impl DailyGamingSession {
     }
 
     pub fn is_session_over(&self, time_played: Duration) -> bool {
-        self.duration <= time_played
+        self.duration < time_played
     }
 
     pub fn is_passed_midnight(&self) -> bool {
-        self.start_time >= self.end_of_day
+        Local::now() >= self.end_of_day
     }
 
     pub fn is_session_ended(&self) -> bool {
@@ -60,6 +60,10 @@ impl DailyGamingSession {
         self.end_of_day = calculate_end_of_day(self.start_time)?;
 
         Ok(())
+    }
+    
+    pub fn start_time(&self) -> DateTime<Local> {
+        self.start_time
     }
 
 }

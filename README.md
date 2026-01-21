@@ -20,9 +20,13 @@ game-tracker --hours 2 --minutes 30 # allow 2 hours and 30 minutes of game time
 ```
 
 ## TODO 
-- Implement protections to make the program unkillable
-- Find other ways to scan for games
+- ~~Implement protections to make the program unkillable~~
+- ~~Find other ways to scan for games~~
 - implement tests
-- add cache (for game sessions)
-- integrate sessions per day
-- date/time tampering detection ?
+- ~~add cache (for game sessions)~~
+- ~~integrate sessions per day~~
+- ~~date/time tampering detection ?~~
+- make rampage mode a little more extra spicy
+- move session calculations to database
+- check to see if ProcessInformation.start_time matches session.start_time (an other sign of tampering)
+- 

@@ -1,8 +1,11 @@
 use std::thread;
 use std::time::{Duration, Instant};
+use chrono::{Local};
 use notify_rust::Notification;
-use crate::errors::Error;
+use crate::errors::{Error, TimeTampering};
 use crate::db::{init_database, upsert_process};
+use crate::process_tree::ProcessInfo;
+use crate::session::DailyGamingSession;
 use crate::time::format_duration;
 use crate::tracker::GameTracker;
 
@@ -39,8 +42,9 @@ impl GameTrackerScheduler {
         }
     }
 
-    pub fn modify_tracker(&mut self) -> &mut GameTracker {
-        &mut self.tracker
+
+    pub fn add_gaming_session(&mut self, session: DailyGamingSession) {
+        self.tracker.add_gaming_session(session)
     }
 
     pub fn add(&mut self, f: SubTask) -> &mut Self {
@@ -149,16 +153,16 @@ pub fn warn_game_session_near_end(threshold: f64, duration: chrono::Duration) ->
 }
 
 pub fn clock_tampering() -> SubTask {
-    let start_time = chrono::Local::now();
+    let start_time = Local::now();
     let uptime = Instant::now();
 
     Box::new(move |_: &mut GameTracker| {
-        let clock_estimation = chrono::Local::now()
+        let clock_estimation = Local::now()
             .signed_duration_since(start_time).num_seconds() as u64;
         let instant_estimation = uptime.elapsed().as_secs();
 
         if clock_estimation > instant_estimation {
-            return Err(Error::ClockTamperingError);
+            return Err(TimeTampering::ClockTamperingError.into());
         }
 
         Ok(())
@@ -174,6 +178,22 @@ pub fn save_stats() -> Result<SubTask, Error> {
                 upsert_process(&mut connection, &process, name)?;
             }
         }
+
         Ok(())
     }))
+}
+
+pub fn rampage_mode() -> SubTask {
+    println!("rampage mode is being activated");
+    Box::new(move |tracker: &mut GameTracker| {
+        let games: Vec<&ProcessInfo> = tracker.gametime_tracker().iter()
+            .flat_map(|(_, proc)| proc.into_iter())
+            .collect();
+
+        for game in games {
+            tracker.kill(game)?;
+        }
+
+        Ok(())
+    })
 }

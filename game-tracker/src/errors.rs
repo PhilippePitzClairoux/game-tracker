@@ -1,3 +1,4 @@
+use std::num::ParseFloatError;
 use std::time::SystemTimeError;
 use thiserror::Error;
 
@@ -10,14 +11,14 @@ pub enum Error {
     #[error("could not deserialize toml file")]
     TOMLDeserializeError(#[from] toml::de::Error),
 
-    #[error("clock tampering detected")]
-    ClockTamperingError,
-
     #[error("could not calculate when tomorrow is")]
     CalculateEndOfDayError,
 
-    #[error("the end of the day (since start_time was set) has been reached")]
-    EndOfDayReachedError,
+    #[error("threshold value must be between 0 and 100")]
+    InvalidThresholdError,
+
+    #[error(transparent)]
+    ParseFloatError(#[from] ParseFloatError),
 
     #[error(transparent)]
     IOError(#[from] std::io::Error),
@@ -26,17 +27,26 @@ pub enum Error {
     NotificationError(#[from]  notify_rust::error::Error),
 
     #[error(transparent)]
-    DesynchronizedTimerError(#[from] SystemTimeError),
-
-    #[error(transparent)]
     RegexError(#[from] regex::Error),
 
     #[error(transparent)]
     ParseIntError(#[from] std::num::ParseIntError),
 
     #[error(transparent)]
-    ProfilerError(#[from] tampering_profiler_support::Errors),
+    DatabaseError(#[from] rusqlite::Error),
 
     #[error(transparent)]
-    DatabaseError(#[from] rusqlite::Error),
+    TimedExecutionTamperingError(#[from] tampering_profiler_support::Errors),
+
+    #[error(transparent)]
+    TimeTamperingError(#[from] TimeTampering),
+}
+
+#[derive(Error, Debug)]
+pub enum TimeTampering {
+    #[error("clock tampering detected")]
+    ClockTamperingError,
+
+    #[error(transparent)]
+    DesynchronizedTimerError(#[from] SystemTimeError),
 }
