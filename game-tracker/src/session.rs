@@ -61,9 +61,5 @@ impl DailyGamingSession {
 
         Ok(())
     }
-    
-    pub fn start_time(&self) -> DateTime<Local> {
-        self.start_time
-    }
 
 }

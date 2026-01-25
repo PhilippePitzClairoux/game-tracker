@@ -24,7 +24,7 @@ pub fn check_tampering(_attr: TokenStream, item: TokenStream) -> TokenStream {
             let __ret = (||#block)();
 
             let __elapsed = __start.elapsed();
-            if __elapsed.as_secs() > 2 {
+            if __elapsed.as_secs() > 5 {
                 return Err(tampering_profiler_support::Errors::TamperingDetected(
                     stringify!(#name).to_string(),
                     __elapsed.as_secs()).into()

@@ -5,12 +5,17 @@ mod scheduler;
 mod db;
 mod errors;
 mod session;
+mod subtasks;
 
 use std::time::Duration;
 use clap::Parser;
+use crate::db::SaveStatistics;
 use crate::errors::Error;
-use crate::scheduler::{timed_game_session, log_games_found, warn_game_session_near_end, GameTrackerScheduler, clock_tampering, save_stats, rampage_mode};
+use crate::scheduler::GameTrackerScheduler;
 use crate::session::DailyGamingSession;
+use crate::subtasks::{
+    ClockTampering, GamesLogger, RampageMode,
+    SessionEndGameKiller, WarnSessionEnding};
 use crate::time::{format_duration, DurationParser};
 use crate::tracker::GameTracker;
 
@@ -36,7 +41,12 @@ struct Arguments {
 
     /// Monitor games only
     #[arg(long, default_value_t = false)]
-    monitor_only: bool
+    monitor_only: bool,
+
+    /// Enable rampage mode
+    /// (kills all games when detected tampering detected)
+    #[arg(long, default_value_t = false)]
+    rampage_mode: bool
 }
 
 fn f64_value_parser(v: &str) -> Result<f64, Error> {
@@ -57,47 +67,55 @@ fn main() -> Result<(), Error> {
     );
 
     // log games found
-    scheduler.add(log_games_found());
-    scheduler.add(clock_tampering());
-    scheduler.add(save_stats()?);
+    scheduler.add(GamesLogger::new());
+    scheduler.add(ClockTampering::new());
+    scheduler.add(SaveStatistics::new()?);
 
     // kill games once session reaches it end
-    if let Some(session_duration) = args.session_duration{
+    if let Some(session_duration) = args.session_duration {
         println!("Session duration enabled - total duration : {}", session_duration.to_string());
         scheduler.add_gaming_session(
-                DailyGamingSession::from_duration(session_duration.to_duration())?
+                DailyGamingSession::from_duration(
+                    session_duration.to_duration()
+                )?
         );
 
         if !args.monitor_only {
-            scheduler.add(timed_game_session());
+            scheduler.add(SessionEndGameKiller::new());
         }
 
         // setup warning when session end if near
         if args.warn {
             let threshold  = args.warning_threshold.unwrap_or(90.0);
-            let value = chrono::Duration::seconds(
-                ((threshold / 100_f64) * session_duration.to_seconds() as f64).floor() as i64
+            let warn_session_ending = WarnSessionEnding::from(
+                threshold, session_duration.to_seconds()
             );
 
             println!("User warning enabled - threshold={}%, warning_after=\"{}\"",
-                     threshold, format_duration(&value)
+                     threshold, format_duration(&warn_session_ending.duration())
             );
 
-            scheduler.add(warn_game_session_near_end(threshold, value));
+            scheduler.add(warn_session_ending);
         }
     }
 
+    let mut rampage_activated: bool = false;
     loop {
         match scheduler.start() {
             Err(Error::TimeTamperingError(_))
             | Err(Error::TimedExecutionTamperingError(_)) => {
                 println!("Tampering detected - activating rampage mode...");
-                scheduler.add(rampage_mode());
+                if args.rampage_mode && !rampage_activated {
+                    rampage_activated = true;
+                    scheduler.add(RampageMode::new());
+                }
             }
+
             Err(unhandled) => {
                 println!("There was an unexpected error: {:?}", unhandled);
                 return Err(unhandled);
             },
+
             _ =>  break
         }
     }

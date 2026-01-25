@@ -181,10 +181,6 @@ impl GameTracker {
         Ok(s)
     }
 
-    pub fn process_tree(&self) -> &ProcessTree {
-        &self.snapshot
-    }
-
     #[check_tampering]
     pub fn load_config(&mut self, config_path: &str) -> Result<(), Error> {
         let mut file = fs::File::open(config_path)?;

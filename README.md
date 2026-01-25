@@ -16,7 +16,7 @@ cargo build --release
 
 ### How to run
 ```shell
-game-tracker --hours 2 --minutes 30 # allow 2 hours and 30 minutes of game time
+game-tracker --session_duration 2h30m # allow 2 hours and 30 minutes of game time
 ```
 
 ## TODO 
@@ -29,4 +29,4 @@ game-tracker --hours 2 --minutes 30 # allow 2 hours and 30 minutes of game time
 - make rampage mode a little more extra spicy
 - move session calculations to database
 - check to see if ProcessInformation.start_time matches session.start_time (an other sign of tampering)
-- 
+- pack executable ? Could be fun eh ?

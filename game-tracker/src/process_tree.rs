@@ -42,17 +42,6 @@ impl Hash for ProcessInfo {
 
 impl ProcessInfo {
 
-    pub fn new() -> ProcessInfo {
-        ProcessInfo {
-            children: None,
-            name: String::new(),
-            cmd: Vec::new(),
-            run_time: 0,
-            pid: Pid::from_u32(0),
-            start_time: Utc::now().timestamp() as u64,
-        }
-    }
-
     pub fn from(proc: &Process) -> ProcessInfo {
         ProcessInfo {
             children: None,
@@ -74,11 +63,6 @@ impl ProcessInfo {
                 self.children.as_mut().unwrap().insert(pid, Box::new(child));
             }
         }
-    }
-
-    pub fn is_child_present(&self, p: &Pid) -> bool {
-        self.children.as_ref()
-            .is_some_and(|child| child.contains_key(p))
     }
 
     pub fn cmd(&self) -> String {
@@ -195,10 +179,6 @@ impl ProcessTree {
 
     pub fn iter(&self) -> Iter<'_, Pid, Box<ProcessInfo>> {
         self.inner.iter()
-    }
-
-    pub fn iter_mut(&mut self) -> IterMut<'_, Pid, Box<ProcessInfo>> {
-        self.inner.iter_mut()
     }
 
     pub fn insert(&mut self, pid: Pid, process: Box<ProcessInfo>) -> Option<Box<ProcessInfo>> {
