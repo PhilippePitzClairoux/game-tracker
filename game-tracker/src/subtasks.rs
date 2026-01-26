@@ -4,12 +4,12 @@ use notify_rust::Notification;
 use crate::errors::{Error, TimeTampering};
 use crate::process_tree::ProcessInfo;
 use crate::time::format_duration;
-use crate::tracker::GameTracker;
+use crate::tracker::GamingTracker;
 
 pub trait SubTask {
 
     /// Main function that executes SubTask
-    fn execute(&mut self, tracker: &mut GameTracker) -> Result<(), Error>;
+    fn execute(&mut self, tracker: &mut GamingTracker) -> Result<(), Error>;
 
 }
 
@@ -32,7 +32,7 @@ impl GamesLogger {
 }
 
 impl SubTask for GamesLogger {
-    fn execute(&mut self, tracker: &mut GameTracker) -> Result<(), Error> {
+    fn execute(&mut self, tracker: &mut GamingTracker) -> Result<(), Error> {
         if tracker.gametime_tracker().len() == 0 {
             println!("No games have been found yet!");
             return Ok(())
@@ -67,7 +67,7 @@ impl SessionEndGameKiller {
 }
 
 impl SubTask for SessionEndGameKiller {
-    fn execute(&mut self, tracker: &mut GameTracker) -> Result<(), Error> {
+    fn execute(&mut self, tracker: &mut GamingTracker) -> Result<(), Error> {
         if let Some(session) = tracker.session() && session.is_session_ended() {
             notify("Play time's over buddy! Go touch grass :-)")?;
 
@@ -108,7 +108,7 @@ impl WarnSessionEnding {
 }
 
 impl SubTask for WarnSessionEnding {
-    fn execute(&mut self, tracker: &mut GameTracker) -> Result<(), Error> {
+    fn execute(&mut self, tracker: &mut GamingTracker) -> Result<(), Error> {
         if let Some(session) = tracker.session() {
             if !self.was_warned && !session.is_session_ended()
                 && tracker.total_time_played() > self.duration {
@@ -148,7 +148,7 @@ impl ClockTampering {
 }
 
 impl SubTask for ClockTampering {
-    fn execute(&mut self, _: &mut GameTracker) -> Result<(), Error> {
+    fn execute(&mut self, _: &mut GamingTracker) -> Result<(), Error> {
 
         if self.detected {
             return Ok(());
@@ -182,7 +182,7 @@ impl RampageMode {
 
 impl SubTask for RampageMode {
 
-    fn execute(&mut self, tracker: &mut GameTracker) -> Result<(), Error> {
+    fn execute(&mut self, tracker: &mut GamingTracker) -> Result<(), Error> {
         let games: Vec<&ProcessInfo> = tracker.gametime_tracker().iter()
             .flat_map(|(_, proc)| proc.into_iter())
             .collect();

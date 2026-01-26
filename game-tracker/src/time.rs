@@ -1,6 +1,6 @@
 use std::str::FromStr;
 use chrono::Duration;
-use regex::{Matches, Regex, RegexSet};
+use regex::{CaptureMatches, Matches, Regex, RegexSet};
 use crate::errors::Error;
 
 #[derive(Debug, Default, Clone, PartialEq, PartialOrd)]
@@ -10,9 +10,12 @@ pub struct DurationParser {
     seconds: i64,
 }
 
-fn parse_hms_duration(extractor: Matches, session_duration: &mut DurationParser) -> Result<(), Error> {
-    for current_match in extractor {
+fn parse_hms_duration(input: &str, session_duration: &mut DurationParser) -> Result<(), Error> {
+    let extractor = Regex::new(r"(\d+[hHmMsS])")?;
+
+    for current_match in extractor.find_iter(input) {
         let mut base_str = current_match.as_str().to_string();
+
         let time_modifier = base_str.pop()
             .ok_or(Error::SessionDurationParserError)?;
 
@@ -51,18 +54,18 @@ impl FromStr for DurationParser {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut session_duration = DurationParser::default();
         let re = RegexSet::new([
-            r"(\d+[hHmMsS]\s?)+",
+            r"^(\d+[hHmMsS]\s?)+$",
             r"^\d+:\d+:\d+$",
         ])?;
 
+        if !re.is_match(s) {
+            return Err(Error::SessionDurationParserError);
+        }
 
         for i in re.matches(s) {
             let current_re = re.patterns()[i].clone();
             match i {
-                0 => {
-                    let extractor = Regex::new(current_re.as_str())?;
-                    parse_hms_duration(extractor.find_iter(s), &mut session_duration)?;
-                },
+                0 => parse_hms_duration(s, &mut session_duration)?,
                 1 => parse_colon_duration(s, &mut session_duration)?,
                 _ => return Err(Error::SessionDurationParserError),
             }
@@ -123,7 +126,7 @@ mod session_duration_parser_tests {
 
     #[test]
     fn test_first_case_with_invalid_values() {
-        DurationParser::from_str("102h avasds")
+        DurationParser::from_str("102h10 avasds")
             .expect_err("should not work!");
 
         DurationParser::from_str("102h 83223")

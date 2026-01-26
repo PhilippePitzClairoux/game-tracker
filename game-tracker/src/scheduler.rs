@@ -3,11 +3,11 @@ use std::time::{Duration, Instant};
 use crate::errors::{Error};
 use crate::session::DailyGamingSession;
 use crate::subtasks::SubTask;
-use crate::tracker::GameTracker;
+use crate::tracker::GamingTracker;
 
 pub struct GameTrackerScheduler {
     frequency: Duration,
-    tracker: GameTracker,
+    tracker: GamingTracker,
     sub_tasks: Vec<Box<dyn SubTask>>,
 }
 
@@ -16,12 +16,12 @@ impl GameTrackerScheduler {
     fn from(frequence: Duration) -> Self {
         GameTrackerScheduler {
             frequency: frequence,
-            tracker: GameTracker::new(),
+            tracker: GamingTracker::new(),
             sub_tasks: Vec::new()
         }
     }
 
-    pub fn using(frequence: Duration, tracker: GameTracker) -> Self {
+    pub fn using(frequence: Duration, tracker: GamingTracker) -> Self {
         GameTrackerScheduler {
             frequency: frequence,
             tracker,
@@ -45,7 +45,7 @@ impl GameTrackerScheduler {
             let start = Instant::now();
 
             // update tracker
-            self.tracker.update_time_tracker()?;
+            self.tracker.refresh()?;
 
             // execute SubTasks
             for sub_task in self.sub_tasks.iter_mut() {

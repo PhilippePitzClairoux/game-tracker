@@ -17,7 +17,7 @@ use crate::subtasks::{
     ClockTampering, GamesLogger, RampageMode,
     SessionEndGameKiller, WarnSessionEnding};
 use crate::time::{format_duration, DurationParser};
-use crate::tracker::GameTracker;
+use crate::tracker::GamingTracker;
 
 #[derive(Parser, Debug, PartialOrd, PartialEq)]
 struct Arguments {
@@ -63,7 +63,7 @@ fn main() -> Result<(), Error> {
     let args = Arguments::parse();
     let mut scheduler = GameTrackerScheduler::using(
         Duration::from_secs(args.scan_interval),
-        GameTracker::try_from("game-tracker/configs/linux.toml")?
+        GamingTracker::try_from("game-tracker/configs/linux.toml")?
     );
 
     // log games found

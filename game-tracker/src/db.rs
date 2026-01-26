@@ -3,7 +3,7 @@ use rusqlite::{params, Connection};
 use crate::errors::Error;
 use crate::process_tree::ProcessInfo;
 use crate::subtasks::SubTask;
-use crate::tracker::GameTracker;
+use crate::tracker::GamingTracker;
 
 pub fn init_database() -> Result<Connection, Error> {
     let conn = Connection::open("statistics.sqlite")?;
@@ -37,7 +37,7 @@ impl SaveStatistics {
 }
 
 impl SubTask for SaveStatistics {
-    fn execute(&mut self, tracker: &mut GameTracker) -> Result<(), Error> {
+    fn execute(&mut self, tracker: &mut GamingTracker) -> Result<(), Error> {
         for (name, processes) in tracker.gametime_tracker() {
             for process in processes {
                 self.upsert_process(&process, name)?;

@@ -123,18 +123,18 @@ fn find_game<'a>(p: &'a ProcessInfo, games: &Games) -> Option<(String, &'a Proce
 }
 
 #[derive(Debug)]
-pub struct GameTracker {
+pub struct GamingTracker {
     system_processes: System,
     installed_games: Games,
-    snapshot: ProcessTree,
-    games_found: BTreeMap<String, HashSet<ProcessInfo>>,
+    process_snapshots: ProcessTree,
+    games: BTreeMap<String, HashSet<ProcessInfo>>,
     gaming_session: Option<DailyGamingSession>
 }
 
-impl GameTracker {
+impl GamingTracker {
 
     pub fn new() -> Self {
-        GameTracker {
+        GamingTracker {
             system_processes:
             System::new_with_specifics(
                 RefreshKind::nothing()
@@ -146,8 +146,8 @@ impl GameTracker {
                             .with_user(UpdateKind::OnlyIfNotSet)
             )),
             installed_games: Games::new(),
-            snapshot: ProcessTree::new(),
-            games_found: BTreeMap::new(),
+            process_snapshots: ProcessTree::new(),
+            games: BTreeMap::new(),
             gaming_session: None
         }
     }
@@ -157,13 +157,13 @@ impl GameTracker {
     }
 
     pub fn gametime_tracker(&self) -> &BTreeMap<String, HashSet<ProcessInfo>> {
-        &self.games_found
+        &self.games
     }
 
     pub fn total_time_played(&self) -> chrono::Duration {
         let mut total_seconds: u64 = 0;
 
-        self.games_found.iter()
+        self.games.iter()
             .flat_map(|(_, processes)| processes.into_iter())
             .for_each(|proc| total_seconds += proc.run_time());
 
@@ -203,37 +203,40 @@ impl GameTracker {
     }
 
     #[check_tampering]
-    pub fn update_time_tracker(&mut self) -> Result<(), Error> {
+    pub fn refresh(&mut self) -> Result<(), Error> {
         self.system_processes.refresh_all();
-        self.snapshot = ProcessTree::from(self.system_processes.processes());
-
-        for (_, process) in self.snapshot.iter() {
-            if let Some((game_name, game_process)) = find_game(process, &self.installed_games) {
-                let game_processes = self.games_found.entry(game_name)
-                    .or_insert(HashSet::new());
-
-                if game_processes.contains(&game_process) {
-                    // if process is already present, remove it to insert it again (with updated runtime)
-                    // ths is 100% a hack
-                    game_processes.remove(&game_process);
-                }
-
-                game_processes.insert(game_process.clone());
-            }
-        }
+        self.process_snapshots = ProcessTree::from(self.system_processes.processes());
+        self.update_running_games();
 
         let time_played = self.total_time_played();
-        if let Some(gaming_session_tracker) = self.gaming_session.as_mut() {
-            if gaming_session_tracker.is_passed_midnight() {
-                gaming_session_tracker.restart_session()?;
+        if let Some(time_played_tracker) = self.gaming_session.as_mut() {
+            if time_played_tracker.is_passed_midnight() {
+                time_played_tracker.restart_session()?;
             }
 
-            if gaming_session_tracker.is_session_over(time_played) {
-                gaming_session_tracker.end_session();
+            if time_played_tracker.is_session_over(time_played) {
+                time_played_tracker.end_session();
             }
         }
 
         Ok(())
+    }
+
+    fn update_running_games(&mut self) {
+        for (_, process) in self.process_snapshots.iter() {
+            if let Some((game_name, game_process)) = find_game(process, &self.installed_games) {
+                let running_games = self.games.entry(game_name)
+                    .or_insert(HashSet::new());
+
+                if running_games.contains(&game_process) {
+                    // if process is already present, remove it to insert it again (with updated runtime)
+                    // ths is 100% a hack
+                    running_games.remove(&game_process);
+                }
+
+                running_games.insert(game_process.clone());
+            }
+        }
     }
 
     #[check_tampering]
